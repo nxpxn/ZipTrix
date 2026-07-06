@@ -1,1 +1,137 @@
-"# ZipTrix" 
+"# ZipTrix
+
+## Changelog
+
+### 2026-02-10 - Update 1.0.11 - Secrets & Cleanup
+* **Secrets Helper:**
+  * Fixed waypoint buttons not functioning (now using SecureActionButtonTemplate).
+  * Fixed layout issues where dropdown items overlapped headers.
+  * Added "World Quest" style banners to secret headers.
+  * "Mind-Seeker" section now tracks progress (Secrets: X/Y).
+* **Character Options:**
+  * Added "Tracker Cleanup" button to untrack all quests and achievements.
+* **Fixes:**
+  * Fixed Lua error when clicking Link pills (StaticPopup EditBox casing).
+  * Fixed waypoint macro execution reliability.
+
+### 2026-02-08 - Update 1.0.10 - Outlaw Rogue
+* **Gear Preferences:**
+  * Updated Outlaw Rogue stat weights, enchants, and consumables.
+
+### 2026-02-08 - Update 1.0.9 - Marksmanship Hunter
+* **Gear Preferences:**
+  * Updated Marksmanship Hunter stat weights, enchants, and consumables.
+  * Added missing enchant definition (Scout's March).
+
+### 2026-02-07 - Update 1.0.8 - Survival Hunter & Data Updates
+* **Gear Preferences:**
+  * Updated Survival and Beast Mastery Hunter stat weights, enchants, and consumables for The War Within S1 / Midnight Pre-Patch.
+  * Added missing enchant definitions (Council's Guile, Stonebound Artistry, Chant of Leeching Fangs).
+
+### 2026-02-06 - Update 1.0.7 - Cleanup & Bag Visuals
+* **Interface Enhancements:**
+  * Added "Openable Item Glow" to bag slots. Containers and caches now glow with the current interface theme color.
+* **Gear Preferences:**
+  * Updated Guardian Druid stat weights, enchants, and consumables for The War Within S1 / Midnight Pre-Patch.
+  * Fixed visual bug where previous character tabs remained visible under the Gear Prefs pane.
+  * Added opaque background to Gear Prefs pane to prevent transparency issues.
+* **Cleanup & Fixes:**
+  * Completely removed "Death Strike Predictor" module due to persistent protected function errors.
+  * Fixed Lua errors related to bag hook initialization.
+
+### 2026-02-02 - Update 1.0.6 - GearPrefs Polish & Fixes
+* **Gear Preferences:**
+  * Expanded compatibility to support The War Within (11.0+) clients.
+  * Implemented widget pooling to prevent memory leaks during spec switches.
+  * Visual Overhaul: Aligned fonts and row styling with the default Character Stats pane.
+  * Added inline Stat Ratings and Percentages to the default Character Stats pane.
+  * Added Diminishing Returns (DR) threshold indicators for secondary stats.
+  * Converted Consumables list to text rows with hoverable tooltips.
+  * Added hoverable tooltips for Enchants (Item/Spell details).
+  * Fixed panel overlapping issues when switching between Character tabs.
+  * Updated data for Midnight Pre-Patch (Consumables, Enchants, Hunter Scopes, DK Runeforges).
+
+### 2026-02-02 - Update 1.0.5 - Shaman & Gear Preferences
+* **Shaman Enhancements:**
+  * Added custom Maelstrom Weapon resource bar (tracks 1-10 stacks).
+  * Replaces default spell alert with a movable/resizable bar.
+  * Features lightning animation at full stacks.
+  * Movable via Shift+LeftClick, Resizable via Shift+RightClick.
+* **Gear Preferences (Midnight Beta Feature):**
+  * Added new "Gear Preferences" tab to the Character Pane.
+  * Displays Stat Weights, Gems, Enchants, and Consumables for current spec.
+  * Populated with Midnight Pre-Patch data for all classes.
+  * Interactive consumable icons (Link/Tooltip).
+  * Only active on Interface 12.0+ clients.
+* **Cleanup & Fixes:**
+  * Removed "Next Rare" floating button module.
+  * Updated TOC to Interface 120000.
+
+### 2026-01-29 - Update 1.0.4.1 - Vendor Overhaul & Polish
+* **Twilight Highlands Vendor:**
+  * Fixed the upgrade icon in the Twilight Highlands Vendor section.
+
+### 2026-01-29 - Update 1.0.4 - Vendor Overhaul & Polish
+* **Twilight Highlands Vendor:**
+  * Fixed item population issues (Robes/Cosmetics) and removed strict usability checks.
+  * Replaced broken "ItemButtonTemplate" with custom button logic.
+  * Added Class-Specific Weapon filtering.
+  * Integrated "Upgrade Clarity" logic (Pawn support + Item Level fallback).
+  * Added visual indicators: Green Arrow (Upgrade), Purple Eye (Uncollected Transmog).
+  * Enhanced Tooltips: Now display status (Available, Cannot Afford, Owned) and Transmog status.
+  * Added Help (?) button with usage guide.
+* **UI Improvements:**
+  * Increased main window height to 520.
+  * Fixed Character Portrait persistence when switching tabs.
+  * Updated API calls for Midnight/The War Within compatibility.
+
+### 2026-01-28 - Update 1.0.3 - Twilight Highlands Readiness
+* **Twilight Highlands:**
+  * Next rare button enabled only in Twilight Highlands.
+  * Added event timer for the hourly event.
+  * Started work on class-spec specific armor purchases (WIP: not working, still needs work).
+
+### 2026-01-27 - Update 1.0.2 - Character & Visual Polish
+* **Character Customization:**
+  * Added "Custom Character Sheet" option to replace the player portrait with stylized class icons.
+  * Includes styles: Fabled, Core, Myth, Realm, Void, and Hidden.
+  * Right-click the portrait on the Character Sheet to cycle through styles.
+* **Collections:**
+  * Added "Wardrobe Icon Search" to the Outfit Editor (search by Icon ID, Spell ID/Name, or Item ID/Name).
+* **Visuals:**
+  * Fixed Class-Spec color gradients for Party and Raid frames (CompactUnitFrames).
+  * Added "LFG Eye Tracking" - the queue eye now follows your cursor.
+* **Cleanup:**
+  * Removed deprecated auto-loot/auto-learn features to comply with API restrictions.
+
+### 2026-01-25 - Update 1.0.1 - Class & Visual Refinement
+* **Class Options:**
+  * Added Shaman section with Travel, Utility, and Interrupt macro generators.
+  * Added Paladin section with Utility macro generators.
+  * Added "Macro Clean Up" tool to remove duplicate character macros.
+  * Added class-specific visibility logic for character options.
+* **Visuals & Theming:**
+  * Refined Class-Spec gradient colors for all classes.
+  * Extended gradients to Party/Raid frames and Class Resource bars (Holy Power, etc.).
+  * Replaced checkboxes with animated Toggle Switches for key interface settings.
+  * Added "Unlock Blizzard Frames" utility for new characters.
+* **Performance & Fixes:**
+  * Optimized loot scanning with item caching and removed protected automation calls.
+  * Added debouncing to Gateway panel refreshes.
+  * Fixed tooltip styling issues in Talent UI.
+
+### 2026-01-24 - Version 1.0.0
+**Initial Testing Release**
+Contains minor forks of the following addons:
+* Enhance QoL by R41Z0R (World map teleports)
+* Item Upgrade Quality Icons by keyboardturner, SolanyaStormbreaker
+
+**Core Suite Features (ZipTrix)**
+* Tooltip Customization: Cursor anchoring, custom borders/themes, ID display, and combat visibility options.
+* Interface Enhancements: Global button theming and Unit Frame health bar gradients (Class-Spec colors).
+* Quality of Life: Auto-opening containers, auto-learning decor/schematics, and Paladin weapon imbue helper.
+* Media: Registers custom fonts (SF Atarian System, Expressway) via LibSharedMedia.
+
+**Note:** Detailed changes for specific modules can be found in:
+* CHANGES-WMDP.txt (World Map Dungeon Portals / Gateways)
+* CHANGES-UC.txt (Upgrade Clarity)"
