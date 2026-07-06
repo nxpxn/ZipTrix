@@ -1,4 +1,6 @@
-"# ZipTrix
+## About
+
+What once started as a simple addon progressed into a bit more and alot unfinished.
 
 ## Changelog
 
