@@ -1,0 +1,15 @@
+## Interface: 120000, 120001, 120005, 120007 
+## Title: ZipTrix
+## Notes: My custom UI suite
+## Author: popgozip
+## Version: 1.0.12
+## SavedVariables: ZipTrixDB
+## IconTexture: Interface\Icons\Ability_Rogue_TricksOfTheTrade
+
+libs\Load.xml
+ZipTrix.lua
+UpgradeClarity.lua
+EverythingElse.lua
+WorldMapDungeonPortals.lua
+gearPrefs.lua
+Druidism.lua
