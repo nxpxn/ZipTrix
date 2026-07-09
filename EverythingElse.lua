@@ -1,5 +1,17 @@
 local addonName, ns = ...
 
+-- Localize globals for performance
+local C_Map = C_Map
+local GetSubZoneText = GetSubZoneText
+local GetBindLocation = GetBindLocation
+local C_QuestLog = C_QuestLog
+local GetAchievementInfo = GetAchievementInfo
+local GetAchievementNumCriteria = GetAchievementNumCriteria
+local GetAchievementCriteriaInfo = GetAchievementCriteriaInfo
+local table = table
+local string = string
+local ipairs = ipairs
+local type = type
 -- Data source for the "Everything Else" page in the Gateway panel
 function ns.GetEverythingElseEntries()
     local sections = {

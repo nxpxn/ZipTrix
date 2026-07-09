@@ -7,6 +7,32 @@ if interfaceVersion < 110000 then
     return
 end
 
+-- 12.0 Optimization: Local references for globals
+local _G = _G
+local type = type
+local ipairs = ipairs
+local pairs = pairs
+local unpack = unpack
+local pcall = pcall
+local math_abs = math.abs
+local math_floor = math.floor
+local string_format = string.format
+local string_find = string.find
+local table_insert = table.insert
+
+local UnitStat = UnitStat
+local BreakUpLargeNumbers = BreakUpLargeNumbers
+local GetCombatRating = GetCombatRating
+local GetCombatRatingBonus = GetCombatRatingBonus
+local GetSpecialization = GetSpecialization
+local GetSpecializationInfo = GetSpecializationInfo
+local CreateFrame = CreateFrame
+local hooksecurefunc = hooksecurefunc
+local C_Item_GetItemNameByID = C_Item.GetItemNameByID
+local C_Item_GetItemIconByID = C_Item.GetItemIconByID
+local C_Item_RequestLoadItemDataByID = C_Item.RequestLoadItemDataByID
+local GameTooltip = GameTooltip
+
 ----------------------------------------------------------------------
 -- Gear Preferences (Beta Only)
 ----------------------------------------------------------------------
@@ -378,7 +404,7 @@ local function GetFontString(parent, style)
         end
     end
     local fs = parent:CreateFontString(nil, "OVERLAY", style)
-    table.insert(widgetPool.fontStrings, fs)
+    table_insert(widgetPool.fontStrings, fs)
     fs:Show()
     return fs
 end
@@ -394,7 +420,7 @@ local function GetTexture(parent)
         end
     end
     local tex = parent:CreateTexture(nil, "ARTWORK")
-    table.insert(widgetPool.textures, tex)
+    table_insert(widgetPool.textures, tex)
     tex:Show()
     return tex
 end
@@ -417,7 +443,7 @@ local function GetRowButton(parent)
     btn.icon:Hide()
     btn.rightText = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     btn.rightText:SetPoint("RIGHT", 0, 0)
-    table.insert(widgetPool.rowButtons, btn)
+    table_insert(widgetPool.rowButtons, btn)
     return btn
 end
 
@@ -432,7 +458,7 @@ local function GetInfoButton(parent)
     local btn = CreateFrame("Button", nil, parent)
     btn:SetSize(16, 16)
     btn:SetNormalTexture("Interface\\common\\help-i")
-    table.insert(widgetPool.infoButtons, btn)
+    table_insert(widgetPool.infoButtons, btn)
     return btn
 end
 
@@ -552,7 +578,7 @@ local function GetStatString(statName)
         if currentBonus and currentBonus > 0 then
             local ratio = currentRating / currentBonus
             local capRating = ratio * 30
-            return string.format("|cffffd100%s|r |cffaaaaaa(30%%)|r", BreakUpLargeNumbers(math.floor(capRating + 0.5)))
+            return string_format("|cffffd100%s|r |cffaaaaaa(30%%)|r", BreakUpLargeNumbers(math_floor(capRating + 0.5)))
         end
         return "|cff808080(N/A)|r"
     end
@@ -579,90 +605,147 @@ local function UpdateContent()
     end
 
     local y = -10
-    
-    -- 1. Stat Weights
-    y = CreateCategoryHeader(contentFrame.scrollChild, "Stat Weights", y, true)
-    for i, stat in ipairs(data.stats) do
-        local color = (i == 1) and {0, 1, 0} or {1, 1, 1} -- Green for primary
-        local valStr = GetStatString(stat)
-        y = CreateTextRow(contentFrame.scrollChild, i .. ". " .. stat, y, color, valStr)
+
+    -- Check for dynamic data from ClassCodex
+    local ccEnchants = nil
+    local ccConsumables = nil
+    local ccGems = nil
+    local _, classFilename = UnitClass("player")
+    local _, specName = GetSpecializationInfo(specIndex)
+    if specName then
+        local sn1 = string.lower(string.gsub(specName, "%s+", ""))
+        local sn2 = string.lower(string.gsub(specName, "%s+", "-"))
+        if ClassCodexGearData and ClassCodexGearData[classFilename] then
+            local specData = ClassCodexGearData[classFilename][sn1] or ClassCodexGearData[classFilename][sn2]
+            if specData then
+                ccEnchants = specData.enchants
+                ccConsumables = specData.consumables
+                ccGems = specData.gems
+            end
+        end
     end
-    y = y - 10
 
     -- 2. Gems
     y = CreateCategoryHeader(contentFrame.scrollChild, "Gems", y)
-    for _, gem in ipairs(data.gems) do
-        local gemName = type(gem) == "table" and gem.text or gem
-        local gemID = type(gem) == "table" and gem.id or nil
-        
-        -- Determine Socket Color
-        local socketIcon = "Interface\\ItemSocketingFrame\\UI-EmptySocket-Prismatic"
-        if gemName:find("Blasphemite") then socketIcon = "Interface\\ItemSocketingFrame\\UI-EmptySocket-Meta"
-        elseif gemName:find("Ruby") then socketIcon = "Interface\\ItemSocketingFrame\\UI-EmptySocket-Red"
-        elseif gemName:find("Sapphire") then socketIcon = "Interface\\ItemSocketingFrame\\UI-EmptySocket-Blue"
-        elseif gemName:find("Emerald") then socketIcon = "Interface\\ItemSocketingFrame\\UI-EmptySocket-Green"
-        elseif gemName:find("Onyx") then socketIcon = "Interface\\ItemSocketingFrame\\UI-EmptySocket-Prismatic" -- Often hybrid/purple
-        elseif gemName:find("Amber") then socketIcon = "Interface\\ItemSocketingFrame\\UI-EmptySocket-Yellow"
-        elseif gemName:find("Diamond") then socketIcon = "Interface\\ItemSocketingFrame\\UI-EmptySocket-Meta"
-        elseif gemName:find("Amethyst") then socketIcon = "Interface\\ItemSocketingFrame\\UI-EmptySocket-Prismatic"
-        elseif gemName:find("Garnet") then socketIcon = "Interface\\ItemSocketingFrame\\UI-EmptySocket-Red"
-        elseif gemName:find("Peridot") then socketIcon = "Interface\\ItemSocketingFrame\\UI-EmptySocket-Green"
+    
+    local function RenderGem(gemName, gemID)
+        local socketIcon = (gemID and gemID > 0) and C_Item_GetItemIconByID(gemID) or nil
+        if not socketIcon then
+            socketIcon = "Interface\\ItemSocketingFrame\\UI-EmptySocket-Prismatic"
+            if gemName:find("Blasphemite") or gemName:find("Diamond") then socketIcon = "Interface\\ItemSocketingFrame\\UI-EmptySocket-Meta"
+            elseif gemName:find("Ruby") or gemName:find("Garnet") then socketIcon = "Interface\\ItemSocketingFrame\\UI-EmptySocket-Red"
+            elseif gemName:find("Sapphire") then socketIcon = "Interface\\ItemSocketingFrame\\UI-EmptySocket-Blue"
+            elseif gemName:find("Emerald") or gemName:find("Peridot") then socketIcon = "Interface\\ItemSocketingFrame\\UI-EmptySocket-Green"
+            elseif gemName:find("Onyx") or gemName:find("Amethyst") then socketIcon = "Interface\\ItemSocketingFrame\\UI-EmptySocket-Prismatic"
+            elseif gemName:find("Amber") then socketIcon = "Interface\\ItemSocketingFrame\\UI-EmptySocket-Yellow"
+            end
         end
 
         local tooltipData = nil
-        if gemID then
-            tooltipData = {type="item", id=gemID}
-        end
-
-        -- Use CreateTextRow to support tooltips if ID is present
+        if gemID and gemID > 0 then tooltipData = {type="item", id=gemID} end
         y = CreateTextRow(contentFrame.scrollChild, gemName, y, nil, nil, tooltipData, socketIcon)
+    end
+
+    if ccGems then
+        if ccGems.primary then
+            RenderGem(ccGems.primary.name or "Unknown", ccGems.primary.itemId)
+        end
+        if ccGems.secondary then
+            for _, gem in ipairs(ccGems.secondary) do
+                RenderGem(gem.name or "Unknown", gem.itemId)
+            end
+        end
+    else
+        for _, gem in ipairs(data.gems) do
+            local gemName = type(gem) == "table" and gem.text or gem
+            local gemID = type(gem) == "table" and gem.id or nil
+            RenderGem(gemName, gemID)
+        end
     end
     y = y - 10
 
+
     -- 3. Enchants
     y = CreateCategoryHeader(contentFrame.scrollChild, "Enchants", y)
-    for _, enchant in ipairs(data.enchants) do
-        local text = enchant
-        local tooltipData = nil
-        if type(enchant) == "table" then
-            text = enchant.text
-            if enchant.id then 
-                tooltipData = {type=enchant.type or "item", id=enchant.id} 
+    if ccEnchants then
+        for _, enchant in ipairs(ccEnchants) do
+            local text = enchant.slot .. ": "
+            local tooltipData = nil
+            if enchant.best then
+                text = text .. (enchant.best.name or "Unknown")
+                if enchant.best.itemId and enchant.best.itemId > 0 then
+                    tooltipData = {type="item", id=enchant.best.itemId}
+                elseif enchant.best.spellId and enchant.best.spellId > 0 then
+                    tooltipData = {type="spell", id=enchant.best.spellId}
+                    if not enchant.best.name or enchant.best.name == "" then
+                        local spellName = C_Spell and C_Spell.GetSpellName(enchant.best.spellId) or GetSpellInfo(enchant.best.spellId)
+                        if spellName then text = enchant.slot .. ": " .. spellName end
+                    end
+                end
             end
+            y = CreateTextRow(contentFrame.scrollChild, text, y, nil, nil, tooltipData)
         end
-        y = CreateTextRow(contentFrame.scrollChild, text, y, nil, nil, tooltipData)
+    else
+        for _, enchant in ipairs(data.enchants) do
+            local text = enchant
+            local tooltipData = nil
+            if type(enchant) == "table" then
+                text = enchant.text
+                if enchant.id then 
+                    tooltipData = {type=enchant.type or "item", id=enchant.id} 
+                end
+            end
+            y = CreateTextRow(contentFrame.scrollChild, text, y, nil, nil, tooltipData)
+        end
     end
     y = y - 10
 
     -- 4. Consumables
     y = CreateCategoryHeader(contentFrame.scrollChild, "Consumables", y)
-    for _, cons in ipairs(data.consumables) do
-        local itemName = cons.name or (cons.id and C_Item.GetItemNameByID(cons.id)) or "Unknown Item"
-        local text = cons.type .. ": " .. itemName
-        
-        -- Determine Icon
-        local icon = nil
-        if cons.type == "Food" then icon = 136000 -- Spell_Misc_Food (Well Fed)
-        elseif cons.type == "Combat Potion" then icon = cons.id and C_Item.GetItemIconByID(cons.id) or 134877
-        elseif cons.type == "Health Potion" then icon = 132095 -- inv_potion_51 (Red)
-        elseif cons.type == "Augment Rune" then icon = 134419 -- inv_misc_rune_01
-        elseif cons.type == "Flask" then icon = 134877 -- inv_potion_119
-        elseif cons.type == "Weapon Buff" then icon = 135274 -- inv_sword_04
-        else icon = cons.id and C_Item.GetItemIconByID(cons.id) or 136121 end
+    if ccConsumables then
+        local order = { "flask", "combatPotion", "food", "weaponBuff", "augmentRune" }
+        for _, key in ipairs(order) do
+            local cons = ccConsumables[key]
+            if cons then
+                local itemName = cons.name or (cons.itemId and C_Item_GetItemNameByID(cons.itemId)) or "Unknown Item"
+                local icon = 136121
+                if key == "food" then icon = 136000
+                elseif key == "combatPotion" then icon = cons.itemId and C_Item_GetItemIconByID(cons.itemId) or 134877
+                elseif key == "flask" then icon = cons.itemId and C_Item_GetItemIconByID(cons.itemId) or 134877
+                elseif key == "augmentRune" then icon = 134419
+                elseif key == "weaponBuff" then icon = 135274 end
+                
+                local tooltipData = (cons.itemId and cons.itemId > 0) and {type="item", id=cons.itemId} or nil
+                y = CreateTextRow(contentFrame.scrollChild, itemName, y, nil, nil, tooltipData, icon)
+                
+                if cons.itemId and cons.itemId > 0 and not C_Item_GetItemNameByID(cons.itemId) then
+                    C_Item_RequestLoadItemDataByID(cons.itemId)
+                end
+            end
+        end
+    else
+        for _, cons in ipairs(data.consumables) do
+            local itemName = cons.name or (cons.id and C_Item_GetItemNameByID(cons.id)) or "Unknown Item"
+            
+            local icon = nil
+            if cons.type == "Food" then icon = 136000
+            elseif cons.type == "Combat Potion" then icon = cons.id and C_Item_GetItemIconByID(cons.id) or 134877
+            elseif cons.type == "Health Potion" then icon = 132095
+            elseif cons.type == "Augment Rune" then icon = 134419
+            elseif cons.type == "Flask" then icon = 134877
+            elseif cons.type == "Weapon Buff" then icon = 135274
+            else icon = cons.id and C_Item_GetItemIconByID(cons.id) or 136121 end
 
-        -- Clean up text to just show Item Name if icon is present and type is generic
-        text = itemName
-
-        local tooltipData = cons.id and {type="item", id=cons.id} or nil
-        y = CreateTextRow(contentFrame.scrollChild, text, y, nil, nil, tooltipData, icon)
-        
-        -- Request load if name missing
-        if cons.id and not C_Item.GetItemNameByID(cons.id) then
-            C_Item.RequestLoadItemDataByID(cons.id)
+            local tooltipData = cons.id and {type="item", id=cons.id} or nil
+            y = CreateTextRow(contentFrame.scrollChild, itemName, y, nil, nil, tooltipData, icon)
+            
+            if cons.id and not C_Item_GetItemNameByID(cons.id) then
+                C_Item_RequestLoadItemDataByID(cons.id)
+            end
         end
     end
 
-    contentFrame.scrollChild:SetHeight(math.abs(y) + 20)
+    contentFrame.scrollChild:SetHeight(math_abs(y) + 20)
 end
 
 local function InitGearPrefsTab()
@@ -672,7 +755,7 @@ local function InitGearPrefsTab()
     -- Create Sidebar Tab (Button)
     -- Parent to PaperDollSidebarTabs so it inherits visibility/strata from the sidebar system
     -- Manually create button to avoid template OnLoad errors in Beta
-    tabFrame = CreateFrame("Button", "ZipTrixGearPrefsTab", PaperDollSidebarTabs)
+    tabFrame = CreateFrame("Button", nil, PaperDollSidebarTabs)
     tabFrame:SetSize(33, 35)
     tabFrame:SetID(4) -- Custom ID
 
@@ -741,7 +824,7 @@ local function InitGearPrefsTab()
     
     -- Create Content Frame
     -- Anchor to CharacterFrameInsetRight (where Stats/Titles/Equip Manager live)
-    contentFrame = CreateFrame("ScrollFrame", "ZipTrixCharStatsPane", CharacterFrameInsetRight, "UIPanelScrollFrameTemplate")
+    contentFrame = CreateFrame("ScrollFrame", nil, CharacterFrameInsetRight, "UIPanelScrollFrameTemplate")
     contentFrame:SetPoint("TOPLEFT", 0, -5)
     contentFrame:SetPoint("BOTTOMRIGHT", -25, 5)
     contentFrame:Hide()
@@ -766,7 +849,13 @@ local function InitGearPrefsTab()
     -- Click Handler
     tabFrame:SetScript("OnClick", function(self)
         -- 0. Update Blizzard's state tracker immediately
-        if PaperDollFrame then PaperDollFrame.currentSideBar = self:GetID() end
+        if PaperDollFrame then 
+            if type(PaperDollFrame.currentSideBar) == "number" then
+                PaperDollFrame.currentSideBar = 4
+            else
+                PaperDollFrame.currentSideBar = contentFrame
+            end
+        end
 
         -- 1. Reset standard tabs
         for i = 1, 3 do
@@ -805,10 +894,9 @@ local function InitGearPrefsTab()
         end)
     end
 
-    -- Hook Blizzard Sidebar Update to enforce our panel visibility when the UI refreshes
     if PaperDollFrame_UpdateSidebar then
         hooksecurefunc("PaperDollFrame_UpdateSidebar", function(self)
-            if self.currentSideBar == 4 then
+            if self.currentSideBar == 4 or self.currentSideBar == contentFrame then
                 if CharacterStatsPane then CharacterStatsPane:Hide() end
                 if PaperDollTitlesPane then PaperDollTitlesPane:Hide() end
                 if PaperDollEquipmentManagerPane then PaperDollEquipmentManagerPane:Hide() end
@@ -818,27 +906,182 @@ local function InitGearPrefsTab()
         end)
     end
 
-    -- Hook Blizzard Character Stats to show Rating inline
-    local function HookBlizzardStat(frame, ratingID)
-        if not frame or not frame.Value then return end
-        local rating = GetCombatRating(ratingID)
-        local text = frame.Value:GetText()
-        -- Prevent double appending by checking if rating is already present
-        if rating > 0 and text then
-            -- Wrap in pcall to avoid secret string value taint errors
-            local ok, found = pcall(string.find, text, BreakUpLargeNumbers(rating), 1, true)
-            if ok and not found then
-                pcall(function() frame.Value:SetText(string.format("|cffffd100%s|r %s", BreakUpLargeNumbers(rating), text)) end)
+    -- ----------------------------------------------------------------------
+    -- PVE/PVP Enhancements Logic
+    -- ----------------------------------------------------------------------
+    local ZipTrix_StatsMode = "PVE"
+
+    local function GetTargetStats()
+        local _, classFilename = UnitClass("player")
+        local specIndex = GetSpecialization()
+        if not specIndex then return {} end
+        local _, specName = GetSpecializationInfo(specIndex)
+        if not specName then return {} end
+        local sn1 = string.lower(string.gsub(specName, "%s+", ""))
+        local sn2 = string.lower(string.gsub(specName, "%s+", "-"))
+
+        local targets = {}
+        if ZipTrix_StatsMode == "PVE" then
+            if ClassCodexArchonStats and ClassCodexArchonStats[classFilename] then
+                local specData = ClassCodexArchonStats[classFilename][sn1] or ClassCodexArchonStats[classFilename][sn2]
+                if specData then
+                    local data = specData["Mythic+"] or specData["Raid"]
+                    if data and data.targets then
+                        targets = data.targets
+                    end
+                end
             end
+        else
+            if ClassCodexMurlokPvp and ClassCodexMurlokPvp[classFilename] then
+                local specData = ClassCodexMurlokPvp[classFilename][sn1] or ClassCodexMurlokPvp[classFilename][sn2]
+                if specData and specData.statPriority then
+                    for _, s in ipairs(specData.statPriority) do
+                        targets[s.key] = s.rating
+                    end
+                end
+            end
+        end
+        return targets
+    end
+
+    local function ReorderStats()
+        local targets = GetTargetStats()
+        local enhancementsCategory
+        for i, category in pairs(PAPERDOLL_STATCATEGORIES) do
+            if category.categoryFrame == "EnhancementsCategory" then
+                enhancementsCategory = category
+                break
+            end
+        end
+        
+        if enhancementsCategory and enhancementsCategory.stats then
+            local function GetStatKey(statString)
+                if statString == "CRITCHANCE" then return "crit" end
+                if statString == "HASTE" then return "haste" end
+                if statString == "MASTERY" then return "mastery" end
+                if statString == "VERSATILITY" then return "versatility" end
+                return nil
+            end
+            
+            local primaryStats = {}
+            local otherStats = {}
+            
+            for _, statData in ipairs(enhancementsCategory.stats) do
+                local key = GetStatKey(statData.stat)
+                if key then
+                    table.insert(primaryStats, { data = statData, key = key })
+                else
+                    table.insert(otherStats, statData)
+                end
+            end
+            
+            table.sort(primaryStats, function(a, b)
+                local targetA = targets[a.key] or 0
+                local targetB = targets[b.key] or 0
+                if targetA == targetB then
+                    return a.key < b.key
+                end
+                return targetA > targetB
+            end)
+            
+            local newStats = {}
+            for _, ps in ipairs(primaryStats) do
+                table.insert(newStats, ps.data)
+            end
+            for _, os in ipairs(otherStats) do
+                table.insert(newStats, os)
+            end
+            
+            enhancementsCategory.stats = newStats
+        end
+    end
+
+    local function FormatStat(frame, ratingID, statKey)
+        if not frame or not frame.Value then return end
+        
+        local targets = GetTargetStats()
+        local targetRating = targets[statKey]
+        
+        local origText = frame.Value:GetText()
+        if not origText then return end
+        
+        if not targetRating then
+            local currentRating = GetCombatRating(ratingID)
+            if currentRating > 0 then
+                local ok, found = pcall(string.find, origText, BreakUpLargeNumbers(currentRating), 1, true)
+                if ok and not found then
+                    pcall(function() frame.Value:SetText(string_format("|cffffd100%s|r %s", BreakUpLargeNumbers(currentRating), origText)) end)
+                end
+            end
+            return
+        end
+
+        local currentRating = GetCombatRating(ratingID)
+        
+        -- Current value matches standard attribute color (Yellow)
+        local currentColor = "|cffffd100" 
+        
+        -- Target value changes color based on proximity to current rating
+        local targetColor = "|cff404040" -- default: very dark gray, almost black
+        
+        if currentRating > targetRating then
+            targetColor = "|cffaa0000" -- dark red (past target)
+        elseif currentRating >= targetRating - 10 then
+            targetColor = "|cff00aa00" -- dark green (very close, 0-10 below)
+        elseif currentRating >= targetRating - 50 then
+            targetColor = "|cffaaaa00" -- dark yellow (getting closer, 10-50 below)
+        end
+        
+        local targetText = string_format("%s%d|r", targetColor, targetRating)
+        local currentText = string_format("%s%d|r", currentColor, currentRating)
+        local pctMatch = string.match(origText, "([%d%.]+%%)") or ""
+        
+        local newText = string_format("%s %s %s", targetText, currentText, pctMatch)
+        
+        if not string.find(origText, targetText, 1, true) then
+            pcall(function() frame.Value:SetText(newText) end)
         end
     end
 
     if PaperDollFrame_SetCritChance then
-        hooksecurefunc("PaperDollFrame_SetCritChance", function(statFrame) HookBlizzardStat(statFrame, CR_CRIT_MELEE) end)
-        hooksecurefunc("PaperDollFrame_SetHaste", function(statFrame) HookBlizzardStat(statFrame, CR_HASTE_MELEE) end)
-        hooksecurefunc("PaperDollFrame_SetVersatility", function(statFrame) HookBlizzardStat(statFrame, CR_VERSATILITY_DAMAGE_DONE) end)
-        hooksecurefunc("PaperDollFrame_SetMastery", function(statFrame) HookBlizzardStat(statFrame, CR_MASTERY) end)
+        hooksecurefunc("PaperDollFrame_SetCritChance", function(statFrame) FormatStat(statFrame, CR_CRIT_MELEE, "crit") end)
+        hooksecurefunc("PaperDollFrame_SetHaste", function(statFrame) FormatStat(statFrame, CR_HASTE_MELEE, "haste") end)
+        hooksecurefunc("PaperDollFrame_SetVersatility", function(statFrame) FormatStat(statFrame, CR_VERSATILITY_DAMAGE_DONE, "versatility") end)
+        hooksecurefunc("PaperDollFrame_SetMastery", function(statFrame) FormatStat(statFrame, CR_MASTERY, "mastery") end)
     end
+
+    if PaperDollFrame_UpdateStats then
+        hooksecurefunc("PaperDollFrame_UpdateStats", function()
+            if not CharacterStatsPane or not CharacterStatsPane.statsFramePool then return end
+            
+            for categoryFrame in CharacterStatsPane.statsFramePool:EnumerateActive() do
+                if categoryFrame.NameText and categoryFrame.NameText:GetText() and string.find(categoryFrame.NameText:GetText(), "Enhancements") then
+                    local pveColor = ZipTrix_StatsMode == "PVE" and "|cffffffff" or "|cff404040"
+                    local pvpColor = ZipTrix_StatsMode == "PVP" and "|cffffffff" or "|cff404040"
+                    categoryFrame.NameText:SetText(string_format("Enhancements %sPVE|r\\%sPVP|r", pveColor, pvpColor))
+                    
+                    if not categoryFrame.ZipTrixToggleHooked then
+                        categoryFrame.ZipTrixToggleHooked = true
+                        local btn = CreateFrame("Button", nil, categoryFrame)
+                        btn:SetAllPoints(categoryFrame.NameText)
+                        btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+                        btn:SetScript("OnClick", function(self, button)
+                            if button == "RightButton" then
+                                ZipTrix_StatsMode = "PVP"
+                            else
+                                ZipTrix_StatsMode = "PVE"
+                            end
+                            ReorderStats()
+                            PaperDollFrame_UpdateStats()
+                        end)
+                    end
+                end
+            end
+        end)
+    end
+    
+    -- Initial sort
+    ReorderStats()
 end
 
 -- 3. INITIALIZATION
@@ -854,6 +1097,9 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
     elseif event == "PLAYER_SPECIALIZATION_CHANGED" then
         if contentFrame and contentFrame:IsVisible() then
             UpdateContent()
+        end
+        if PaperDollFrame_UpdateStats then
+            PaperDollFrame_UpdateStats()
         end
     end
 end)

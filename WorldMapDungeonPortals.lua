@@ -14,6 +14,7 @@ local L = {
 -- lists all teleports from addon.MythicPlus.variables.portalCompendium,
 -- honoring favorites and the main teleport options where reasonable.
 
+local CreateFrame = CreateFrame
 local f = CreateFrame("Frame")
 local DISPLAY_MODE = "zip_DungeonPortals"
 local ICON_ACTIVE = 135744 -- Interface\Icons\Spell_Arcane_Teleport
@@ -232,7 +233,7 @@ local function EnsurePanel(parent)
 	if panel and panel:GetParent() ~= targetParent then panel:SetParent(targetParent) end
 	if panel then return panel end
 
-	panel = CreateFrame("Frame", "zipWorldMapDungeonPortalsPanel", targetParent, "BackdropTemplate")
+	panel = CreateFrame("Frame", nil, targetParent, "BackdropTemplate")
 	if not InCombatLockdown() then panel:Hide() end
 
 	local function anchorPanel()
@@ -267,7 +268,7 @@ local function EnsurePanel(parent)
 	-- Border & Title are positioned after Scroll creation
 
 	-- Scroll area
-	local s = CreateFrame("ScrollFrame", "zipWorldMapDungeonPortalsScrollFrame", panel, "ScrollFrameTemplate")
+	local s = CreateFrame("ScrollFrame", nil, panel, "ScrollFrameTemplate")
 	-- Fill interior; ScrollBar will sit in the right gutter via offsets
 	s:ClearAllPoints()
 	s:SetPoint("TOPLEFT")
@@ -296,7 +297,7 @@ local function EnsurePanel(parent)
 		s._zipBarAnchored = true
 	end
 
-	local content = CreateFrame("Frame", "zipWorldMapDungeonPortalsScrollChild", s)
+	local content = CreateFrame("Frame", nil, s)
 	content:SetSize(1, 1)
 	s:SetScrollChild(content)
 
@@ -1711,7 +1712,7 @@ local function EnsureTab(parent, anchorTo)
 	end
 
 	-- Use Blizzard QuestLog tab template for a perfect visual match
-	tabButton = CreateFrame("Button", "zipWorldMapDungeonPortalsTab", parent, "QuestLogTabButtonTemplate")
+	tabButton = CreateFrame("Button", nil, parent, "QuestLogTabButtonTemplate")
 	tabButton:SetSize(32, 32)
 	if anchorTo then
 		tabButton:SetPoint("TOP", anchorTo, "BOTTOM", 0, -15)

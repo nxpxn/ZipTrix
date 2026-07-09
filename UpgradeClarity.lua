@@ -364,12 +364,12 @@ end
 local function build_item_level_track(item_level, upgrade_track, upgrade_level, max_upgrade_level)
     local track_start_item_level = item_level
         - ((upgrade_level - 1) * BAND_SPACING)
-        - (floor((upgrade_level - 1) / BAND_COUNT) * BAND_ADJUSTMENT)
+        - (floor((upgrade_level - 1 + BAND_COUNT - 1) / BAND_COUNT) * BAND_ADJUSTMENT)
     local color = upgrade_level == 1 and ITEM_QUALITY_COLORS[7].hex or ITEM_QUALITY_COLORS[0].hex
 
     local track_item_levels = {color..track_start_item_level.."|r"}
     for i = 1, max_upgrade_level - 1 do
-        local band_adjustment = floor(i / BAND_COUNT) * BAND_ADJUSTMENT
+        local band_adjustment = floor((i + BAND_COUNT - 1) / BAND_COUNT) * BAND_ADJUSTMENT
         local band_spacing = (BAND_SPACING * i) + band_adjustment
 
         color = ITEM_QUALITY_COLORS[0].hex
@@ -453,19 +453,10 @@ local function tooltip_handler(tooltip, data)
 end
 
 -- Event Handling
-local UpgradeClarity = {
-    events = {},
-    frame = API_CreateFrame("Frame"),
-}
-
-function UpgradeClarity.events:PLAYER_LOGIN()
-    API_AddTooltipPostCall(TOOLTIP_TYPE_ITEM, tooltip_handler)
-end
-
-for key in pairs(UpgradeClarity.events) do
-    UpgradeClarity.frame:RegisterEvent(key)
-end
-
-UpgradeClarity.frame:SetScript("OnEvent", function(self, event, ...)
-    UpgradeClarity.events[event](self, ...)
+local frame = API_CreateFrame("Frame", nil)
+frame:RegisterEvent("PLAYER_LOGIN")
+frame:SetScript("OnEvent", function(self, event, ...)
+    if event == "PLAYER_LOGIN" then
+        API_AddTooltipPostCall(TOOLTIP_TYPE_ITEM, tooltip_handler)
+    end
 end)

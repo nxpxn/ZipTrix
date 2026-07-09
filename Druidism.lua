@@ -1,6 +1,32 @@
 local addonName, ns = ...
 
 ----------------------------------------------------------------------
+-- GLOBALS TO LOCALS FOR PERFORMANCE
+----------------------------------------------------------------------
+local CreateFrame = CreateFrame
+local GetTime = GetTime
+local UnitPower = UnitPower
+local UnitArmor = UnitArmor
+local UnitLevel = UnitLevel
+local GetSpecialization = GetSpecialization
+local GetSpecializationInfo = GetSpecializationInfo
+local GetShapeshiftForm = GetShapeshiftForm
+local IsPlayerSpell = IsPlayerSpell
+local BreakUpLargeNumbers = BreakUpLargeNumbers
+local IsShiftKeyDown = IsShiftKeyDown
+local pcall = pcall
+local math_abs = math.abs
+local string_format = string.format
+local table_insert = table.insert
+local table_remove = table.remove
+local pairs = pairs
+local ipairs = ipairs
+local select = select
+local UIParent = UIParent
+local C_PaperDollInfo = C_PaperDollInfo
+local issecretvalue = issecretvalue
+
+----------------------------------------------------------------------
 -- 1. DATABASE & DEFAULTS
 ----------------------------------------------------------------------
 local defaults = {
@@ -27,12 +53,14 @@ end
 -- 2. GUARDIAN MODULE (Ironfur Tracker)
 ----------------------------------------------------------------------
 local Guardian = {}
-Guardian.frame = CreateFrame("Frame", "ZipTrixGuardianFrame", UIParent)
+-- 12.0 API Guideline: Remove global string names in CreateFrame
+Guardian.frame = CreateFrame("Frame", nil, UIParent)
 Guardian.activeTicks = {}
 Guardian.IRONFUR_ID = 192081
 Guardian.URSOCS_ENDURANCE_ID = 393611
 Guardian.SPEC_ID = 104
 Guardian.currentDuration = 7
+Guardian.updateTimer = 0
 
 function Guardian:Init()
     local f = self.frame
@@ -59,7 +87,7 @@ function Guardian:Init()
     f.armorText = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     f.armorText:SetPoint("RIGHT", -8, 0)
 
-    f:SetScript("OnUpdate", function() self:OnUpdate() end)
+    f:SetScript("OnUpdate", function(_, elapsed) self:OnUpdate(elapsed) end)
     f:SetScript("OnEvent", function(_, event, ...) self:OnEvent(event, ...) end)
     
     self:ApplySettings()
@@ -120,7 +148,7 @@ function Guardian:UpdateVisibility()
         -- Clear ticks
         for i = #self.activeTicks, 1, -1 do
             self.activeTicks[i]:Hide()
-            table.remove(self.activeTicks, i)
+            table_remove(self.activeTicks, i)
         end
     end
 end
@@ -134,22 +162,47 @@ function Guardian:CreateTick()
     local c = db.guardianTickColor
     t.tex:SetColorTexture(c[1], c[2], c[3], c[4])
     t.endTime = GetTime() + self.currentDuration
-    table.insert(self.activeTicks, t)
+    table_insert(self.activeTicks, t)
 end
 
-function Guardian:OnUpdate()
+function Guardian:OnUpdate(elapsed)
     if not self.frame:IsShown() then return end
     local db = ZipTrixDB.Druid
     local now = GetTime()
 
+    -- Process smooth tick movement every frame
+    for i = #self.activeTicks, 1, -1 do
+        local tick = self.activeTicks[i]
+        local remaining = tick.endTime - now
+        if remaining <= 0 then 
+            tick:Hide() 
+            table_remove(self.activeTicks, i)
+        else
+            tick:SetHeight(db.guardianTrackerHeight)
+            local progress = remaining / self.currentDuration
+            tick:SetPoint("LEFT", self.frame, "LEFT", progress * db.guardianTrackerWidth, 0)
+            tick:Show()
+        end
+    end
+
+    -- Throttle text updates for performance
+    self.updateTimer = self.updateTimer + elapsed
+    if self.updateTimer < 0.1 then return end
+    self.updateTimer = 0
+
     -- Update Text
     local rage = UnitPower("player", 1) -- Enum.PowerType.Rage = 1
-    self.frame.rageText:SetText(rage)
+    if issecretvalue and issecretvalue(rage) then
+        self.frame.rageText:SetText("?")
+    else
+        self.frame.rageText:SetText(rage)
+    end
 
     local baseArmor, effectiveArmor = UnitArmor("player")
     local armorVal = effectiveArmor or baseArmor or 0
     local reduction = 0
-    local isValidNumber = pcall(math.abs, armorVal)
+    local isSecret = issecretvalue and issecretvalue(armorVal)
+    local isValidNumber = not isSecret and pcall(math_abs, armorVal)
 
     if isValidNumber and C_PaperDollInfo and C_PaperDollInfo.GetArmorEffectiveness then
         -- pcall safely catches restricted execution errors without crashing the addon
@@ -163,24 +216,10 @@ function Guardian:OnUpdate()
     local cDruid = "|cffE6731A"
     local cWhite = "|cffD9D9D9"
     if isValidNumber then
-        self.frame.armorText:SetText(string.format("%s%s %s(%s%.1f%%%s)|r", cDruid, BreakUpLargeNumbers(armorVal), cDruid, cWhite, reduction, cDruid))
+        self.frame.armorText:SetText(string_format("%s%s %s(%s%.1f%%%s)|r", cDruid, BreakUpLargeNumbers(armorVal), cDruid, cWhite, reduction, cDruid))
     else
         -- Fallback display when armor is restricted
-        self.frame.armorText:SetText(string.format("%s%s %s(%s--%%%s)|r", cDruid, "???", cDruid, cWhite, cDruid))
-    end
-
-    for i = #self.activeTicks, 1, -1 do
-        local tick = self.activeTicks[i]
-        local remaining = tick.endTime - now
-        if remaining <= 0 then 
-            tick:Hide() 
-            table.remove(self.activeTicks, i)
-        else
-            tick:SetHeight(db.guardianTrackerHeight)
-            local progress = remaining / self.currentDuration
-            tick:SetPoint("LEFT", self.frame, "LEFT", progress * db.guardianTrackerWidth, 0)
-            tick:Show()
-        end
+        self.frame.armorText:SetText(string_format("%s%s %s(%s--%%%s)|r", cDruid, "???", cDruid, cWhite, cDruid))
     end
 end
 
@@ -280,7 +319,7 @@ end
 ----------------------------------------------------------------------
 -- 4. INITIALIZATION
 ----------------------------------------------------------------------
-local eventFrame = CreateFrame("Frame")
+local eventFrame = CreateFrame("Frame", nil, UIParent)
 eventFrame:RegisterEvent("ADDON_LOADED")
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")

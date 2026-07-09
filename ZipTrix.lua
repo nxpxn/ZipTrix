@@ -2,6 +2,7 @@
 -- 1. INITIALIZATION & DATABASE
 ----------------------------------------------------------------------
 local addonName, ns = ...
+local CreateFrame = CreateFrame
 local frame = CreateFrame("Frame")
 ns.frame = frame
 
@@ -266,7 +267,7 @@ local function InitTransmogRarity()
     end)
 
     -- 2. Rarity Sort Button
-    local sortBtn = CreateFrame("Button", "ZipTrixRaritySortButton", WardrobeCollectionFrame, "UIMenuButtonStretchTemplate")
+    local sortBtn = CreateFrame("Button", nil, WardrobeCollectionFrame, "UIMenuButtonStretchTemplate")
     sortBtn:SetText("Rarity Sort")
     sortBtn:SetSize(90, 22)
     sortBtn:SetPoint("RIGHT", WardrobeCollectionFrame.FilterButton, "LEFT", -5, 0)
@@ -298,7 +299,7 @@ local function InitWardrobeSearch()
     local frame = WardrobeOutfitEditFrame
     if not frame or frame.ZipTrixSearchBox then return end
 
-    local sb = CreateFrame("EditBox", "ZipTrixWardrobeSearchBox", frame, "SearchBoxTemplate")
+    local sb = CreateFrame("EditBox", nil, frame, "SearchBoxTemplate")
     sb:SetSize(115, 20)
     -- Position: Left of the Dropdown
     if frame.FilterDropDown then
@@ -700,7 +701,7 @@ local function UpdateDressingRoomModel()
 
     -- Create our custom model frame if it doesn't exist
     if not DressUpFrame.ZipTrixModel then
-        local model = CreateFrame("DressUpModel", "ZipTrixDressUpModel", DressUpFrame)
+        local model = CreateFrame("DressUpModel", nil, DressUpFrame)
         if DressUpFrame.ModelScene then
             model:SetAllPoints(DressUpFrame.ModelScene)
             model:SetFrameLevel(DressUpFrame.ModelScene:GetFrameLevel() + 1)
@@ -724,11 +725,15 @@ local function UpdateDressingRoomModel()
             end
         end)
         model:SetScript("OnUpdate", function(self, elapsed)
-            if self.isRotating then
-                local x = GetCursorPosition()
-                local diff = (x - self.cursorX) * 0.01
-                self:SetFacing(self:GetFacing() + diff)
-                self.cursorX = x
+            self.elapsed_accum = (self.elapsed_accum or 0) + elapsed
+            if self.elapsed_accum >= 0.1 then
+                self.elapsed_accum = 0
+                if self.isRotating then
+                    local x = GetCursorPosition()
+                    local diff = (x - self.cursorX) * 0.01
+                    self:SetFacing(self:GetFacing() + diff)
+                    self.cursorX = x
+                end
             end
         end)
         
@@ -767,7 +772,7 @@ local function CreateDressingRoomControls()
     if DressUpFrame.ZipTrixPanel then return end
     
     -- Create Side Panel
-    local panel = CreateFrame("Frame", "ZipTrixDressingRoomPanel", DressUpFrame, "BackdropTemplate")
+    local panel = CreateFrame("Frame", nil, DressUpFrame, "BackdropTemplate")
     panel:SetSize(200, 160)
     panel:SetPoint("TOPRIGHT", DressUpFrame, "TOPLEFT", -2, 0)
     panel:SetFrameLevel(DressUpFrame:GetFrameLevel() + 5)
@@ -792,7 +797,7 @@ local function CreateDressingRoomControls()
     DressUpFrame.ZipTrixPanel = panel
     
     -- Create Toggle Button
-    local toggleBtn = CreateFrame("Button", "ZipTrixDressingRoomToggleButton", DressUpFrame)
+    local toggleBtn = CreateFrame("Button", nil, DressUpFrame)
     local refBtn = DressUpFrame.ToggleCustomSetDetailsButton or DressUpFrame.ToggleCusotmSetDetailsButton or DressUpFrame.ToggleOutfitDetailsButton
     
     if refBtn then
@@ -1134,8 +1139,12 @@ local function UpdateTooltipPosition(self)
     self:SetPoint(ZipTrixDB.anchorPoint or "BOTTOMLEFT", UIParent, "BOTTOMLEFT", finalX, finalY)
 end
 
-GameTooltip:HookScript("OnUpdate", function(self)
-    if ZipTrixDB and ZipTrixDB.anchorCursor and self:GetOwner() then UpdateTooltipPosition(self) end
+GameTooltip:HookScript("OnUpdate", function(self, elapsed)
+    self.elapsed_accum = (self.elapsed_accum or 0) + (elapsed or 0.05)
+    if self.elapsed_accum >= 0.1 then
+        self.elapsed_accum = 0
+        if ZipTrixDB and ZipTrixDB.anchorCursor and self:GetOwner() then UpdateTooltipPosition(self) end
+    end
 end)
 
 -- B. Visual & Border Logic
@@ -1143,6 +1152,7 @@ local tooltipBorders = {}
 
 local function ApplyTooltipStyle(tooltip)
     if not ZipTrixDB then return end
+    if tooltip.IsForbidden and tooltip:IsForbidden() then return end
     local style = ZipTrixDB.borderStyle or "Blizzard"
 
     -- 1. Create our custom border frame if it doesn't exist yet
@@ -1175,12 +1185,20 @@ local function ApplyTooltipStyle(tooltip)
     if style == "Blizzard" then
         -- Restore Default
         border:Hide()
-        if tooltip.NineSlice then tooltip.NineSlice:SetAlpha(1) end
+        if tooltip.NineSlice then
+            for _, region in ipairs({tooltip.NineSlice:GetRegions()}) do
+                if region:IsObjectType("Texture") then region:SetAlpha(1) end
+            end
+        end
         -- We don't touch the backdrop color in Blizzard mode, letting the game handle it
     else
         -- Apply Custom Look
         border:Show()
-        if tooltip.NineSlice then tooltip.NineSlice:SetAlpha(0) end
+        if tooltip.NineSlice then
+            for _, region in ipairs({tooltip.NineSlice:GetRegions()}) do
+                if region:IsObjectType("Texture") then region:SetAlpha(0) end
+            end
+        end
 
         -- Set Background (Deep Dark)
         border.bg:SetVertexColor(0.05, 0.05, 0.05, 0.9)
@@ -1206,22 +1224,37 @@ local function ApplyTooltipStyle(tooltip)
     end
 end
 
--- Hook OnShow to apply styles every time it appears
-GameTooltip:HookScript("OnShow", function(self)
+-- Process tooltips using the modern TooltipDataProcessor API
+local function ProcessTooltipPostCall(tooltip)
     if not ZipTrixDB then return end
-    if ZipTrixDB.hideInCombat and InCombatLockdown() then self:Hide() end
-    
-    -- Apply Border
-    ApplyTooltipStyle(self)
-end)
+    if tooltip.IsForbidden and tooltip:IsForbidden() then return end
+    if tooltip == GameTooltip and ZipTrixDB.hideInCombat and InCombatLockdown() then
+        tooltip:Hide()
+        return
+    end
+    ApplyTooltipStyle(tooltip)
+end
 
--- Hook SharedTooltip_SetBackdropStyle to prevent Blizzard from resetting styles (e.g. in Talent Frame)
-if SharedTooltip_SetBackdropStyle then
-    hooksecurefunc("SharedTooltip_SetBackdropStyle", function(self)
-        if self == GameTooltip then
-            ApplyTooltipStyle(self)
-        end
+if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall then
+    for _, dataType in pairs(Enum.TooltipDataType) do
+        TooltipDataProcessor.AddTooltipPostCall(dataType, ProcessTooltipPostCall)
+    end
+else
+    -- Fallback for older clients
+    GameTooltip:HookScript("OnShow", function(self)
+        if not ZipTrixDB then return end
+        if self.IsForbidden and self:IsForbidden() then return end
+        if ZipTrixDB.hideInCombat and InCombatLockdown() then self:Hide() end
+        ApplyTooltipStyle(self)
     end)
+    if SharedTooltip_SetBackdropStyle then
+        hooksecurefunc("SharedTooltip_SetBackdropStyle", function(self)
+            if self.IsForbidden and self:IsForbidden() then return end
+            if self == GameTooltip then
+                ApplyTooltipStyle(self)
+            end
+        end)
+    end
 end
 
 InitDropdownHooks = function()
@@ -1464,7 +1497,7 @@ InitMaelstromBar = function()
     local _, class = UnitClass("player")
     if class ~= "SHAMAN" or maelstromFrame then return end
 
-    maelstromFrame = CreateFrame("Frame", "ZipTrixMaelstromBar", UIParent)
+    maelstromFrame = CreateFrame("Frame", nil, UIParent)
     maelstromFrame:SetSize(ZipTrixDB.maelstromBarWidth, ZipTrixDB.maelstromBarHeight)
     maelstromFrame:SetPoint(ZipTrixDB.maelstromBarPoint, UIParent, ZipTrixDB.maelstromBarPoint, ZipTrixDB.maelstromBarX, ZipTrixDB.maelstromBarY)
     maelstromFrame:SetFrameStrata("LOW")
@@ -1523,11 +1556,15 @@ InitMaelstromBar = function()
     maelstromFrame.lightning = lightning
 
     maelstromFrame:SetScript("OnUpdate", function(self, elapsed)
-        if self.isFull and self.lightning then
-            local scroll = (self.scroll or 0) - (elapsed * 0.8)
-            if scroll < 0 then scroll = scroll + 1 end
-            self.scroll = scroll
-            self.lightning:SetTexCoord(scroll, scroll + 1, 0, 1)
+        self.elapsed_accum = (self.elapsed_accum or 0) + elapsed
+        if self.elapsed_accum >= 0.1 then
+            self.elapsed_accum = 0
+            if self.isFull and self.lightning then
+                local scroll = (self.scroll or 0) - (elapsed * 0.8)
+                if scroll < 0 then scroll = scroll + 1 end
+                self.scroll = scroll
+                self.lightning:SetTexCoord(scroll, scroll + 1, 0, 1)
+            end
         end
     end)
 
@@ -1596,7 +1633,7 @@ end
 ----------------------------------------------------------------------
 local headerFont = "Interface\\AddOns\\ZipTrix\\assets\\SFAtarianSystem.ttf"
 
-local gui = CreateFrame("Frame", "ZipTrixMainFrame", UIParent, "BackdropTemplate")
+local gui = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
 gui:SetSize(600, 520)
 gui:SetPoint("CENTER")
 gui:SetFrameStrata("HIGH")
@@ -2637,7 +2674,7 @@ twilightBlurb:SetJustifyH("LEFT")
 twilightBlurb:SetText("This tab only populates when accessing the appropriate vendors.")
 twilightBlurb:SetTextColor(0.6, 0.6, 0.6)
 
-local twilightScroll = CreateFrame("ScrollFrame", "ZipTrixTwilightScroll", pageTwilight, "UIPanelScrollFrameTemplate")
+local twilightScroll = CreateFrame("ScrollFrame", nil, pageTwilight, "UIPanelScrollFrameTemplate")
 twilightScroll:SetPoint("TOPLEFT", 0, -45)
 twilightScroll:SetPoint("BOTTOMRIGHT", -25, 10)
 local twilightContent = CreateFrame("Frame", nil, twilightScroll)
@@ -3646,7 +3683,7 @@ end)
 local function ShowDebugExport()
     local f = _G["ZipTrixDebugFrame"]
     if not f then
-        f = CreateFrame("Frame", "ZipTrixDebugFrame", UIParent, "ButtonFrameTemplate")
+        f = CreateFrame("Frame", nil, UIParent, "ButtonFrameTemplate")
         f:SetSize(400, 500)
         f:SetPoint("CENTER")
         f:SetFrameStrata("DIALOG")

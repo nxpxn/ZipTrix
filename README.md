@@ -4,6 +4,32 @@ What once started as a simple addon progressed into a bit more and alot unfinish
 
 ## Changelog
 
+### 2026-07-09 - Update 1.0.15 - Gear Preferences Automation & UI Fixes
+* **Gear Preferences:**
+  * Dynamically hooked Enchants, Consumables, and Gems using `ClassCodexGearData` to automatically grab the latest Best-in-Slot item recommendations based on the active spec.
+  * Removed the redundant "Stat Weights" section since they are now natively injected into the Character Sheet Enhancements frame.
+  * Updated the Gem UI to fetch the actual item icons via `C_Item.GetItemIconByID` instead of generic colored empty sockets.
+* **Character Frame Fixes:**
+  * Fixed a critical Lua error (`attempt to index field 'currentSideBar' (a number value)`) when switching Character Frame bottom tabs, caused by Blizzard updating `currentSideBar` to expect a Frame object reference rather than a numeric index in modern WoW UI.
+
+### 2026-07-09 - Update 1.0.14 - Tooltip Taint Fixes
+* **Tooltips:**
+  * Fixed a common "secret number / frameLeft" taint error affecting map pins (e.g. Prey Icon).
+  * NineSlice alpha modifications now target internal texture regions to prevent boundary taint.
+  * Added `IsForbidden()` security checks to tooltips.
+  * Replaced legacy `HookScript("OnShow")` with the modern `TooltipDataProcessor` API.
+
+### 2026-07-09 - Update 1.0.13 - Upgrade Clarity Updates
+* **Upgrade Clarity:**
+  * Updated item level step calculation for Season 2 / Midnight track scaling (shifted the +4 item level jump to the correct interval).
+
+### 2026-07-06 - Update 1.0.12 - 12.0 API Migration & Performance
+* **API Migration:**
+  * Updated TOC and frame handles to Midnight 12.0 standards (removed global `CreateFrame` names).
+  * Updated CLEU and `issecretvalue()` checks for secure variables.
+* **Performance:**
+  * Optimized performance by localizing API globals and throttling `OnUpdate` ticks.
+
 ### 2026-02-10 - Update 1.0.11 - Secrets & Cleanup
 * **Secrets Helper:**
   * Fixed waypoint buttons not functioning (now using SecureActionButtonTemplate).
