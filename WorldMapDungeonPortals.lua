@@ -39,65 +39,274 @@ do
 	end
 end
 
+local PROF_SKILL_LINES = {
+	["Engineering"] = 202,
+	["Blacksmithing"] = 164,
+	["Leatherworking"] = 165,
+	["Alchemy"] = 171,
+	["Herbalism"] = 182,
+	["Mining"] = 186,
+	["Tailoring"] = 197,
+	["Enchanting"] = 333,
+	["Skinning"] = 393,
+	["Jewelcrafting"] = 755,
+	["Inscription"] = 773,
+	["Archaeology"] = 794,
+	["Fishing"] = 356,
+	["Cooking"] = 185,
+}
+
+local function CharacterHasProfession(profNameOrID)
+	if not profNameOrID then return true end
+	local targetSkillLine = PROF_SKILL_LINES[profNameOrID] or (type(profNameOrID) == "number" and profNameOrID)
+	local p1, p2, arch, fish, cook = GetProfessions()
+	local profs = { p1, p2, arch, fish, cook }
+	for _, profIndex in ipairs(profs) do
+		if profIndex then
+			local name, _, _, _, _, _, skillLine = GetProfessionInfo(profIndex)
+			if (targetSkillLine and skillLine == targetSkillLine) or (name and name == profNameOrID) then
+				return true
+			end
+		end
+	end
+	return false
+end
+
 local function IsToyUsable(id)
 	if not id or not PlayerHasToy(id) then return false end
-	if C_ToyBox and C_ToyBox.GetToyInfo then
-		local _, _, _, _, _, _, isUsable = C_ToyBox.GetToyInfo(id)
-		if isUsable ~= nil then return isUsable end
-	end
-	local tips = C_TooltipInfo.GetToyByItemID(id)
-	if not tips or not tips.lines then return true end
-	for _, line in pairs(tips.lines) do
-		if line.type == 23 then -- requirement text; white = usable
-			local c = line.leftColor
-			if c and c.r == 1 and c.g == 1 and c.b == 1 then return true end
+
+	-- 1. Check C_ToyBox.IsToyUsable
+	if C_ToyBox and C_ToyBox.IsToyUsable then
+		local usable = C_ToyBox.IsToyUsable(id)
+		if usable ~= nil and not usable then
 			return false
+		end
+	end
+
+	-- 2. Check C_PlayerInfo.CanUseItem
+	if C_PlayerInfo and C_PlayerInfo.CanUseItem then
+		local canUse = C_PlayerInfo.CanUseItem(id)
+		if canUse ~= nil and not canUse then
+			return false
+		end
+	end
+
+	-- 3. Check C_TooltipInfo for any unmet requirement lines (colored red)
+	if C_TooltipInfo and C_TooltipInfo.GetToyByItemID then
+		local tips = C_TooltipInfo.GetToyByItemID(id)
+		if tips and tips.lines then
+			for _, line in ipairs(tips.lines) do
+				local c = line.leftColor
+				-- In WoW tooltips, RED_FONT_COLOR indicates an unmet requirement (profession, level, race, class, covenant)
+				if c and c.r and c.r > 0.8 and (c.g or 0) < 0.4 and (c.b or 0) < 0.4 then
+					return false
+				end
+			end
+		end
+	end
+
+	return true
+end
+
+local function IsItemUsable(id)
+	if not id then return false end
+	if C_PlayerInfo and C_PlayerInfo.CanUseItem then
+		local canUse = C_PlayerInfo.CanUseItem(id)
+		if canUse ~= nil and not canUse then
+			return false
+		end
+	end
+	if C_TooltipInfo and C_TooltipInfo.GetItemByID then
+		local tips = C_TooltipInfo.GetItemByID(id)
+		if tips and tips.lines then
+			for _, line in ipairs(tips.lines) do
+				local c = line.leftColor
+				if c and c.r and c.r > 0.8 and (c.g or 0) < 0.4 and (c.b or 0) < 0.4 then
+					return false
+				end
+			end
 		end
 	end
 	return true
 end
 
-local function BuildSpellEntries()
-	local dungeonTeleports = {
-		-- Mists of Pandaria
-		{ spellID = 131204, name = "Temple of the Jade Serpent" }, { spellID = 131205, name = "Stormstout Brewery" },
-		{ spellID = 131206, name = "Shado-Pan Monastery" }, { spellID = 131222, name = "Mogu'shan Palace" },
-		{ spellID = 131225, name = "Gate of the Setting Sun" }, { spellID = 131228, name = "Siege of Niuzao Temple" },
-		{ spellID = 131229, name = "Scarlet Halls" }, { spellID = 131231, name = "Scarlet Monastery" },
-		{ spellID = 131232, name = "Scholomance" },
-		-- Warlords of Draenor
-		{ spellID = 159895, name = "Bloodmaul Slag Mines" }, { spellID = 159896, name = "Iron Docks" },
-		{ spellID = 159897, name = "Auchindoun" }, { spellID = 159898, name = "Skyreach" },
-		{ spellID = 159899, name = "Shadowmoon Burial Grounds" }, { spellID = 159900, name = "Grimrail Depot" },
-		{ spellID = 159901, name = "Everbloom" }, { spellID = 159902, name = "Upper Blackrock Spire" },
-		-- Legion
-		{ spellID = 410080, name = "Halls of Valor" }, { spellID = 393764, name = "Court of Stars" },
-		{ spellID = 424163, name = "Darkheart Thicket" }, { spellID = 424153, name = "Black Rook Hold" },
-		{ spellID = 410078, name = "Neltharion's Lair" }, { spellID = 424187, name = "Throne of the Tides" },
-		-- Battle for Azeroth
-		{ spellID = 410071, name = "Freehold" }, { spellID = 424167, name = "Waycrest Manor" },
-		{ spellID = 424185, name = "Atal'Dazar" }, { spellID = 410074, name = "The Underrot" },
-		{ spellID = 445424, name = "Siege of Boralus" },
-		-- Shadowlands
-		{ spellID = 354462, name = "De Other Side" }, { spellID = 354464, name = "Halls of Atonement" },
-		{ spellID = 354463, name = "Mists of Tirna Scithe" }, { spellID = 354465, name = "Plaguefall" },
-		{ spellID = 354466, name = "Sanguine Depths" }, { spellID = 354467, name = "Spires of Ascension" },
-		{ spellID = 354468, name = "The Necrotic Wake" }, { spellID = 354469, name = "Theater of Pain" },
-		{ spellID = 367416, name = "Tazavesh" },
-		-- Dragonflight
-		{ spellID = 393256, name = "Algeth'ar Academy" }, { spellID = 393262, name = "Ruby Life Pools" },
-		{ spellID = 393279, name = "The Nokhud Offensive" }, { spellID = 393273, name = "Brackenhide Hollow" },
-		{ spellID = 393222, name = "Uldaman: Legacy of Tyr" }, { spellID = 393267, name = "Neltharus" },
-		{ spellID = 393276, name = "The Azure Vault" }, { spellID = 393283, name = "Halls of Infusion" },
-		{ spellID = 424197, name = "Dawn of the Infinite" },
-		-- The War Within
-		{ spellID = 445269, name = "The Stonevault" }, { spellID = 445418, name = "The Dawnbreaker" },
-		{ spellID = 445414, name = "Ara-Kara, City of Echoes" }, { spellID = 445416, name = "City of Threads" },
-		{ spellID = 445417, name = "Cinderbrew Meadery" }, { spellID = 445440, name = "Darkflame Cleft" },
-		{ spellID = 445441, name = "Priory of the Sacred Flame" }, { spellID = 445444, name = "The Rookery" },
-		{ spellID = 464256, name = "Grim Batol" },
-	}
+local dungeonTeleports = {
+	-- Mists of Pandaria
+	{ spellID = 131204, name = "Temple of the Jade Serpent" }, { spellID = 131205, name = "Stormstout Brewery" },
+	{ spellID = 131206, name = "Shado-Pan Monastery" }, { spellID = 131222, name = "Mogu'shan Palace" },
+	{ spellID = 131225, name = "Gate of the Setting Sun" }, { spellID = 131228, name = "Siege of Niuzao Temple" },
+	{ spellID = 131229, name = "Scarlet Halls" }, { spellID = 131231, name = "Scarlet Monastery" },
+	{ spellID = 131232, name = "Scholomance" },
+	-- Warlords of Draenor
+	{ spellID = 159895, name = "Bloodmaul Slag Mines" }, { spellID = 159896, name = "Iron Docks" },
+	{ spellID = 159897, name = "Auchindoun" }, { spellID = 159898, name = "Skyreach" },
+	{ spellID = 159899, name = "Shadowmoon Burial Grounds" }, { spellID = 159900, name = "Grimrail Depot" },
+	{ spellID = 159901, name = "Everbloom" }, { spellID = 159902, name = "Upper Blackrock Spire" },
+	-- Legion
+	{ spellID = 410080, name = "Halls of Valor" }, { spellID = 393764, name = "Court of Stars" },
+	{ spellID = 424163, name = "Darkheart Thicket" }, { spellID = 424153, name = "Black Rook Hold" },
+	{ spellID = 410078, name = "Neltharion's Lair" }, { spellID = 424187, name = "Throne of the Tides" },
+	-- Battle for Azeroth
+	{ spellID = 410071, name = "Freehold" }, { spellID = 424167, name = "Waycrest Manor" },
+	{ spellID = 424185, name = "Atal'Dazar" }, { spellID = 410074, name = "The Underrot" },
+	{ spellID = 445424, name = "Siege of Boralus" },
+	{ spellID = 373262, name = "Operation: Mechagon" },
+	{ spellID = 373274, name = "The MOTHERLODE!!" },
+	-- Shadowlands
+	{ spellID = 354462, name = "De Other Side" }, { spellID = 354464, name = "Halls of Atonement" },
+	{ spellID = 354463, name = "Mists of Tirna Scithe" }, { spellID = 354465, name = "Plaguefall" },
+	{ spellID = 354466, name = "Sanguine Depths" }, { spellID = 354467, name = "Spires of Ascension" },
+	{ spellID = 354468, name = "The Necrotic Wake" }, { spellID = 354469, name = "Theater of Pain" },
+	{ spellID = 367416, name = "Tazavesh" },
+	-- Dragonflight
+	{ spellID = 393256, name = "Algeth'ar Academy" }, { spellID = 393262, name = "Ruby Life Pools" },
+	{ spellID = 393279, name = "The Nokhud Offensive" }, { spellID = 393273, name = "Brackenhide Hollow" },
+	{ spellID = 393222, name = "Uldaman: Legacy of Tyr" }, { spellID = 393267, name = "Neltharus" },
+	{ spellID = 393276, name = "The Azure Vault" }, { spellID = 393283, name = "Halls of Infusion" },
+	{ spellID = 424197, name = "Dawn of the Infinite" },
+	-- The War Within & Midnight
+	{ spellID = 445269, name = "The Stonevault" }, { spellID = 445418, name = "The Dawnbreaker" },
+	{ spellID = 445414, name = "Ara-Kara, City of Echoes" }, { spellID = 445416, name = "City of Threads" },
+	{ spellID = 445417, name = "Cinderbrew Meadery" }, { spellID = 445440, name = "Darkflame Cleft" },
+	{ spellID = 445441, name = "Priory of the Sacred Flame" }, { spellID = 445444, name = "The Rookery" },
+	{ spellID = 464256, name = "Grim Batol" },
+	{ spellID = 1216786, name = "Operation: Floodgate" },
+}
 
+local function IsInDungeonOrDelve()
+	local inInstance, instanceType = IsInInstance()
+	if not inInstance then return false, nil end
+
+	local _, _, difficultyID = GetInstanceInfo()
+	if instanceType == "party" then
+		return true, "dungeon"
+	elseif instanceType == "scenario" or difficultyID == 208 then
+		return true, "delve"
+	elseif C_PartyInfo and C_PartyInfo.IsDelve and C_PartyInfo.IsDelve() then
+		return true, "delve"
+	end
+
+	return false, nil
+end
+
+local function BuildInstanceReturnSection()
+	local isInside, zoneType = IsInDungeonOrDelve()
+	if not isInside then return nil end
+
+	local items = {}
+	local title = (zoneType == "delve") and "Delve Escape & Portals" or "Dungeon Return & Portals"
+
+	-- 1. Delver's Mana-Bound Ethergate (Toy 243056)
+	-- Opens a team portal for 1 minute allowing any party member to transport back to Delver's Headquarters
+	local ethergateID = 243056
+	local hasEthergateToy = PlayerHasToy(ethergateID)
+	local hasEthergateItem = (C_Item.GetItemCount(ethergateID, true) > 0)
+	local isEthergateKnown = hasEthergateToy or hasEthergateItem
+	local etherName = (C_Item.GetItemNameByID and C_Item.GetItemNameByID(ethergateID)) or "Delver's Mana-Bound Ethergate"
+	local etherIcon = C_Item.GetItemIconByID(ethergateID) or 136121
+	table.insert(items, {
+		text = etherName .. (isEthergateKnown and " (Team Portal)" or " (Uncollected)"),
+		toyName = etherName,
+		itemID = ethergateID,
+		iconID = etherIcon,
+		isKnown = isEthergateKnown,
+		isItem = not hasEthergateToy and hasEthergateItem,
+		isToy = hasEthergateToy or not hasEthergateItem,
+		toyID = ethergateID,
+		inBank = (C_Item.GetItemCount(ethergateID) == 0 and hasEthergateItem),
+	})
+
+	-- 2. Delve-O-Bot 7001 (Toy 230850)
+	-- Transports straight to a Delve entrance
+	if zoneType == "delve" then
+		local delveBotID = 230850
+		local hasBotToy = PlayerHasToy(delveBotID)
+		local hasBotItem = (C_Item.GetItemCount(delveBotID, true) > 0)
+		local isBotKnown = hasBotToy or hasBotItem
+		local botName = (C_Item.GetItemNameByID and C_Item.GetItemNameByID(delveBotID)) or "Delve-O-Bot 7001"
+		local botIcon = C_Item.GetItemIconByID(delveBotID) or 136121
+		table.insert(items, {
+			text = botName .. (isBotKnown and " (Delve Entrance)" or " (Uncollected)"),
+			toyName = botName,
+			itemID = delveBotID,
+			iconID = botIcon,
+			isKnown = isBotKnown,
+			isItem = not hasBotToy and hasBotItem,
+			isToy = hasBotToy or not hasBotItem,
+			toyID = delveBotID,
+			inBank = (C_Item.GetItemCount(delveBotID) == 0 and hasBotItem),
+		})
+	end
+
+	-- 3. Current Dungeon Entrance Teleport (if in a dungeon)
+	-- Casting the Hero's Path teleport for the current dungeon resets/teleports you to the entrance!
+	if zoneType == "dungeon" then
+		local currentInstanceName = GetInstanceInfo()
+		if currentInstanceName and dungeonTeleports then
+			for _, info in ipairs(dungeonTeleports) do
+				if info.name and (info.name == currentInstanceName or strfind(currentInstanceName, info.name, 1, true)) then
+					if IsSpellKnown(info.spellID) then
+						local spellInfo = C_Spell.GetSpellInfo(info.spellID)
+						if spellInfo then
+							table.insert(items, {
+								text = spellInfo.name .. " (Entrance)",
+								spellID = info.spellID,
+								iconID = spellInfo.iconID,
+								isKnown = true,
+								isItem = false,
+								isToy = false,
+							})
+						end
+					end
+				end
+			end
+		end
+	end
+
+	-- 4. Direbrew's Remote (Item 37863) - party mole machine
+	local remoteID = 37863
+	if PlayerHasToy(remoteID) or C_Item.GetItemCount(remoteID, true) > 0 then
+		local isToy = PlayerHasToy(remoteID)
+		local name = (C_Item.GetItemNameByID and C_Item.GetItemNameByID(remoteID)) or "Direbrew's Remote"
+		local icon = C_Item.GetItemIconByID(remoteID) or 136121
+		table.insert(items, {
+			text = name .. " (Party)",
+			toyName = name,
+			itemID = remoteID,
+			iconID = icon,
+			isKnown = true,
+			isItem = not isToy,
+			isToy = isToy,
+			toyID = isToy and remoteID or nil,
+		})
+	end
+
+	-- 5. Jaina's Locket (Item 52251) - party portal to Dalaran
+	local locketID = 52251
+	if PlayerHasToy(locketID) or C_Item.GetItemCount(locketID, true) > 0 then
+		local isToy = PlayerHasToy(locketID)
+		local name = (C_Item.GetItemNameByID and C_Item.GetItemNameByID(locketID)) or "Jaina's Locket"
+		local icon = C_Item.GetItemIconByID(locketID) or 136121
+		table.insert(items, {
+			text = name .. " (Party Portal)",
+			toyName = name,
+			itemID = locketID,
+			iconID = icon,
+			isKnown = true,
+			isItem = not isToy,
+			isToy = isToy,
+			toyID = isToy and locketID or nil,
+		})
+	end
+
+	if #items > 0 then
+		return { title = title, items = items }
+	end
+
+	return nil
+end
+
+local function BuildSpellEntries()
 	local items = {}
 	for _, info in ipairs(dungeonTeleports) do
 		if IsSpellKnown(info.spellID) then
@@ -923,6 +1132,8 @@ local function BuildExtraTeleports()
 	local C_SHADOWLANDS = "Shadowlands"
 	local C_DRAGONISLES = "Dragon Isles"
 	local C_KHAZALGAR = "Khaz Algar"
+	local C_QUELTHALAS = "Quel'Thalas"
+	local C_UNKNOWN = "Unknown"
 
 	local function AddToGroup(dest, entry)
 		if not dest then return end
@@ -1022,6 +1233,10 @@ local function BuildExtraTeleports()
 
 	-- Items & Toys
 	local teleportItemsDB = {
+		-- Midnight / Quel'Thalas
+		{ id = 228926, dest = C_QUELTHALAS, name = "Personal Key to the Arcantina" }, -- Arcantina (12.0 Toy)
+		{ id = 253629, dest = C_QUELTHALAS, name = "Personal Key to the Arcantina" }, -- Arcantina (12.0 Item)
+		{ id = 248485, dest = C_QUELTHALAS, prof = "Engineering" }, -- Wormhole: Quel'Thalas (12.0)
 		-- Guild Cloaks (Stormwind/Orgrimmar)
 		{ id = 65360, dest = (faction == "Horde" and C_KALIMDOR or C_EK) }, 
 		{ id = 65274, dest = (faction == "Horde" and C_KALIMDOR or C_EK) },
@@ -1034,27 +1249,29 @@ local function BuildExtraTeleports()
 		{ id = 110560, dest = C_DRAENOR }, -- Garrison Hearthstone
 		{ id = 128353, dest = C_DRAENOR }, -- Admiral's Compass
 		{ id = 37863, dest = C_EK }, -- Direbrew's Remote
+		{ id = 52251, dest = C_NORTHREND }, -- Jaina's Locket (Party Portal to Dalaran)
 		-- Engineering Wormholes / Transporters
-		{ id = 48933, dest = C_NORTHREND }, -- Wormhole: Northrend
-		{ id = 87215, dest = C_PANDARIA }, -- Wormhole: Pandaria
-		{ id = 112059, dest = C_DRAENOR }, -- Wormhole: Draenor
-		{ id = 151652, dest = C_LEGION }, -- Wormhole: Argus
-		{ id = 168807, dest = C_KULTIRAS }, -- Wormhole: Kul Tiras
-		{ id = 172924, dest = C_SHADOWLANDS }, -- Wormhole: Shadowlands
-		{ id = 198156, dest = C_DRAGONISLES }, -- Wyrmhole: Dragon Isles
-		{ id = 18984, dest = C_KALIMDOR }, -- Ultrasafe Transporter: Gadgetzan
-		{ id = 18986, dest = C_OUTLAND }, -- Ultrasafe Transporter: Toshley's Station
-		{ id = 30542, dest = C_OUTLAND }, -- Dimensional Ripper: Area 52
-		{ id = 30544, dest = C_KALIMDOR }, -- Dimensional Ripper: Everlook
+		{ id = 48933, dest = C_NORTHREND, prof = "Engineering" }, -- Wormhole: Northrend
+		{ id = 87215, dest = C_PANDARIA, prof = "Engineering" }, -- Wormhole: Pandaria
+		{ id = 112059, dest = C_DRAENOR, prof = "Engineering" }, -- Wormhole: Draenor
+		{ id = 151652, dest = C_LEGION, prof = "Engineering" }, -- Wormhole: Argus
+		{ id = 168807, dest = C_KULTIRAS, prof = "Engineering" }, -- Wormhole: Kul Tiras
+		{ id = 172924, dest = C_SHADOWLANDS, prof = "Engineering" }, -- Wormhole: Shadowlands
+		{ id = 198156, dest = C_DRAGONISLES, prof = "Engineering" }, -- Wyrmhole: Dragon Isles
+		{ id = 221966, dest = C_KHAZALGAR, prof = "Engineering" }, -- Wormhole Generator: Khaz Algar
+		{ id = 18984, dest = C_KALIMDOR, prof = "Engineering" }, -- Ultrasafe Transporter: Gadgetzan
+		{ id = 18986, dest = C_OUTLAND, prof = "Engineering" }, -- Ultrasafe Transporter: Toshley's Station
+		{ id = 30542, dest = C_OUTLAND, prof = "Engineering" }, -- Dimensional Ripper: Area 52
+		{ id = 30544, dest = C_KALIMDOR, prof = "Engineering" }, -- Dimensional Ripper: Everlook
 		{ id = 243056, dest = C_KHAZALGAR }, -- Delver's Mana-Bound Ethergate
 		{ id = 230850, dest = C_KHAZALGAR }, -- Delve-O-Bot 7001
 		-- Scrolls / Artifacts
-		{ id = 139590, dest = C_EK }, -- Scroll: Ravenholdt
+		{ id = 139590, dest = C_EK, class = "ROGUE" }, -- Scroll: Ravenholdt
 		{ id = 151016, dest = C_OUTLAND }, -- Fractured Necrolyte Skull
 		{ id = 103678, dest = C_PANDARIA }, -- Time-Lost Artifact
 		{ id = 32757, dest = C_OUTLAND }, -- Blessed Medallion of Karabor
-		{ id = 133755, dest = "Fishing Node", isMulti=true },
-		{ id = 184503, dest = "Random Location", isMulti=true },
+		{ id = 133755, dest = "Fishing Node", isMulti = true, prof = "Fishing" },
+		{ id = 184503, dest = "Random Location", isMulti = true },
 		{ id = 205255, dest = C_DRAGONISLES }, -- Niffen Diggin' Mitts
 		-- Requested "Path of..." Items (Assuming TWW/Recent)
 		{ id = 1254400, dest = C_KHAZALGAR },
@@ -1083,19 +1300,34 @@ local function BuildExtraTeleports()
 			local _, playerRace = UnitRace("player")
 			if entry.race ~= playerRace then raceMatch = false end
 		end
+
+		local classMatch = true
+		if entry.class then
+			local _, playerClass = UnitClass("player")
+			if entry.class ~= playerClass then classMatch = false end
+		end
 		
-		if raceMatch and (isToy or countTotal > 0) then
+		local profMatch = CharacterHasProfession(entry.prof)
+		
+		if raceMatch and classMatch and profMatch and (isToy or countTotal > 0) then
 			local usable = true
 			if isToy then
 				usable = IsToyUsable(itemID)
 			elseif not inBank then
 				-- Only check usability if it's actually in bags
-				usable = IsUsableItem(itemID)
+				if C_Item.IsUsableItem then
+					usable = C_Item.IsUsableItem(itemID)
+				elseif IsUsableItem then
+					usable = IsUsableItem(itemID)
+				end
+			else
+				-- If in bank, verify character meets requirements
+				usable = IsItemUsable(itemID)
 			end
 
-			-- Always show if in bank, otherwise check usability
-			if usable or inBank then
-				local name = C_Item.GetItemNameByID(itemID) or GetItemInfo(itemID)
+			-- Only show if usable, or if a non-toy item in the bank is usable by this character
+			if (isToy and usable) or (not isToy and (usable or inBank)) then
+				local name = (C_Item.GetItemNameByID and C_Item.GetItemNameByID(itemID)) or (C_Item.GetItemInfo and C_Item.GetItemInfo(itemID)) or (GetItemInfo and GetItemInfo(itemID)) or entry.name
 				local icon = C_Item.GetItemIconByID(itemID)
 				
 				-- If name is missing, request load (it might show up next refresh)
@@ -1269,6 +1501,9 @@ local hearthstoneToys = {
 	{ isToy = true, icon = 5891370, id = 228940 }, -- Notorious Thread's Hearthstone
 	{ isToy = true, icon = 6383489, id = 236687 }, -- Explosive Hearthstone
 	{ isToy = true, icon = 1029741, id = 263489 }, -- Naaru's Enfold
+	{ isToy = true, id = 265100 }, -- Corewarden's Hearthstone (12.0)
+	{ isToy = true, id = 284160 }, -- Shadeweaver's Hearthstone (12.1.5)
+	{ isToy = true, id = 284158 }, -- Shadeweaver's Hearthstone (12.1.5 Alt)
 	{ isToy = true, icon = 1686574, id = 210455, race = { "LightforgedDraenei", "Draenei" } }, -- Draenic Hologem
 	{ isToy = true, icon = 3257748, id = 184353 }, -- Kyrian Hearthstone
 	{ isToy = true, icon = 3514225, id = 183716 }, -- Venthyr Sinstone
@@ -1286,6 +1521,9 @@ local function BuildHomeSection()
 			if v.race then
 				usable = false
 				for _, r in ipairs(v.race) do if r == playerRace then usable = true break end end
+			end
+			if usable and not v.isItem then
+				usable = IsToyUsable(v.id)
 			end
 			if usable then
 				local name = C_Item.GetItemNameByID(v.id)
@@ -1514,6 +1752,12 @@ local function PopulatePanel()
 
 		for _, sec in ipairs(others) do
 			table.insert(combined, sec)
+		end
+
+		-- Instance Return & Escape Section (Top Priority when inside Dungeon or Delve)
+		local instanceSec = BuildInstanceReturnSection()
+		if instanceSec then
+			table.insert(combined, 1, instanceSec)
 		end
 	end
 
@@ -2030,7 +2274,7 @@ local function worldMapEventHandler(self, event, arg1)
 	if not WorldMapFrame or not WorldMapFrame:IsShown() then return end
 	if event == "SPELL_UPDATE_COOLDOWN" or event == "BAG_UPDATE_COOLDOWN" then
 		f:UpdateCooldowns()
-	elseif event == "SPELLS_CHANGED" or event == "BAG_UPDATE_DELAYED" or event == "TOYS_UPDATED" 
+	elseif event == "PLAYER_ENTERING_WORLD" or event == "SPELLS_CHANGED" or event == "BAG_UPDATE_DELAYED" or event == "TOYS_UPDATED" or event == "SKILL_LINES_CHANGED"
 		or event == "HEARTHSTONE_BOUND" or event == "ZONE_CHANGED" or event == "ZONE_CHANGED_NEW_AREA" or event == "ZONE_CHANGED_INDOORS" or event == "GET_ITEM_INFO_RECEIVED" then
 		if ZipTrixDB and ZipTrixDB["teleportsWorldMapEnabled"] and not f._refreshTimer then 
             f._refreshTimer = C_Timer.After(0.1, function() f._refreshTimer = nil; f:RefreshPanel() end)
@@ -2043,9 +2287,11 @@ function ns.InitWorldMapTeleportPanel()
 
 	f:SetScript("OnEvent", worldMapEventHandler)
 	f:RegisterEvent("ADDON_LOADED")
+	f:RegisterEvent("PLAYER_ENTERING_WORLD")
 	f:RegisterEvent("PLAYER_REGEN_DISABLED")
 	f:RegisterEvent("PLAYER_REGEN_ENABLED")
 	f:RegisterEvent("SPELLS_CHANGED")
+	f:RegisterEvent("SKILL_LINES_CHANGED")
 	f:RegisterEvent("BAG_UPDATE_DELAYED")
 	f:RegisterEvent("TOYS_UPDATED")
 	f:RegisterEvent("SPELL_UPDATE_COOLDOWN")

@@ -98,6 +98,7 @@ local defaults = {
     interfaceThemeEnabled = true,
     interfaceButtonStyle = "Expansion",
     enableSpecGradient = true,
+    delvesMislaidCuriositiesTracking = true,
     enableFrameworx = false,
     upgradeClarityEnabled = true,
     upgradeClarityShowSources = true,
@@ -129,7 +130,7 @@ local defaults = {
 }
 
 local anchorPoints = { "BOTTOMLEFT", "BOTTOMRIGHT", "TOPLEFT", "TOPRIGHT", "CENTER" }
-local borderStyles = { "Blizzard", "Blizzard Dark", "Dark", "Expansion", "Class" } -- Cycle Options
+local borderStyles = { "Blizzard", "Blizzard Dark", "Dark", "Expansion", "Class", "DarkMode (Integrade)" } -- Cycle Options
 local portraitStyles = { "Fabled", "Fabled Core", "Fabled Myth", "Fabled Realm", "Into The Void", "Blizzard Default", "Hidden" }
 
 -- Forward declarations
@@ -470,7 +471,7 @@ local function UpdateBagItemStyle(button)
             local r, g, b = 1, 1, 1
             local style = ZipTrixDB.interfaceButtonStyle or "Expansion"
             if style == "Dark" then r,g,b = 0.4, 0.4, 0.4
-            elseif style == "Expansion" then r,g,b = 0.6, 0.2, 1.0
+            elseif style == "Expansion" then r,g,b = 0.2, 0.9, 0.2 -- Toxic Green
             elseif style == "Class" then
                 local _, classFilename = UnitClass("player")
                 local c = C_ClassColor.GetClassColor(classFilename)
@@ -1209,8 +1210,8 @@ local function ApplyTooltipStyle(tooltip)
             -- Sharp Black/Dark Gray
             r, g, b = 0.1, 0.1, 0.1
         elseif style == "Expansion" then
-            -- Neon Purple
-            r, g, b = 0.6, 0.2, 1.0
+            -- Toxic Green
+            r, g, b = 0.2, 0.9, 0.2
         elseif style == "Class" then
             -- Get Player Class Color
             local _, classFilename = UnitClass("player")
@@ -1339,6 +1340,9 @@ local function UpdateZiptrixGradient(statusbar, unit)
     -- 1. Safety Checks
     if not unit or not statusbar then return end
     if not statusbar:IsVisible() then return end
+
+    -- Ignore nameplates (prevent taint and math errors on dynamically loaded enemy frames)
+    if type(unit) == "string" and string.match(unit, "^nameplate") then return end
     
     -- 2. Check User Preference
     if not ZipTrixDB or not ZipTrixDB.enableSpecGradient or not gradientsAvailable then return end
@@ -1355,10 +1359,16 @@ local function UpdateZiptrixGradient(statusbar, unit)
     local _, classFile = UnitClass(unit)
     local classColor = classFile and C_ClassColor.GetClassColor(classFile)
     if classColor then
-        cR, cG, cB = classColor.r, classColor.g, classColor.b
-    else
-        cR, cG, cB = 0.5, 0.5, 0.5
+        if type(classColor.GetRGB) == "function" then
+            cR, cG, cB = classColor:GetRGB()
+        else
+            cR, cG, cB = classColor.r, classColor.g, classColor.b
+        end
     end
+
+    if type(cR) ~= "number" then cR = 0.5 end
+    if type(cG) ~= "number" then cG = 0.5 end
+    if type(cB) ~= "number" then cB = 0.5 end
 
     -- Get Right Side (Spec Color for Player, Darker Class for others)
     if unit == "player" then
@@ -1699,6 +1709,9 @@ pageLootz:Hide()
 local pageAbout = CreateFrame("Frame", nil, content)
 pageAbout:SetAllPoints()
 pageAbout:Hide()
+local pageDelves = CreateFrame("Frame", nil, content)
+pageDelves:SetAllPoints()
+pageDelves:Hide()
 
 ----------------------------------------------------------------------
 -- CUSTOM UI HELPERS
@@ -1715,13 +1728,19 @@ local function ApplyFrameTheme()
         if style == "Dark" then
             r, g, b = 0.1, 0.1, 0.1
         elseif style == "Expansion" then
-            r, g, b = 0.5, 0.1, 0.9
+            r, g, b = 0.2, 0.9, 0.2 -- Toxic Green
         elseif style == "Class" then
             local _, classFilename = UnitClass("player")
             local c = C_ClassColor.GetClassColor(classFilename)
             if c then r, g, b = c.r, c.g, c.b end
         elseif style == "Blizzard" then
             r, g, b = 0.8, 0.2, 0.2
+        elseif style == "DarkMode (Integrade)" then
+            if _G.DarkMode and _G.DarkMode.ApplySkin then
+                if gui then _G.DarkMode:ApplySkin(gui) end
+                if sidebar then _G.DarkMode:ApplySkin(sidebar) end
+            end
+            r, g, b = 0.1, 0.1, 0.1
         end
     end
     
@@ -1775,8 +1794,8 @@ ApplyButtonTheme = function(btn)
             r, g, b = 0.1, 0.1, 0.1
             br, bg, bb = 0, 0, 0
         elseif style == "Expansion" then
-            r, g, b = 0.2, 0.05, 0.3
-            br, bg, bb = 0.4, 0.1, 0.6
+            r, g, b = 0.05, 0.2, 0.05
+            br, bg, bb = 0.2, 0.9, 0.2
         elseif style == "Class" then
             local _, classFilename = UnitClass("player")
             local c = C_ClassColor.GetClassColor(classFilename)
@@ -1791,6 +1810,12 @@ ApplyButtonTheme = function(btn)
             -- Flat Red style if they want "Blizzard" color but flat theme
             r, g, b = 0.5, 0.1, 0.1
             br, bg, bb = 0.8, 0.2, 0.2
+        elseif style == "DarkMode (Integrade)" then
+            if _G.DarkMode and _G.DarkMode.ApplySkin then
+                _G.DarkMode:ApplySkin(btn)
+            end
+            r, g, b = 0.1, 0.1, 0.1
+            br, bg, bb = 0.2, 0.2, 0.2
         end
 
         btn:SetBackdropColor(r, g, b, 1)
@@ -3399,6 +3424,26 @@ ChatFrame_AddMessageEventFilter("CHAT_MSG_SYSTEM", RepMessageFilter)
 -- 6. ABOUT PAGE
 ----------------------------------------------------------------------
 local changelogText = [[
+2026-10-14    Update 1.0.18 - Midnight Gateways, Delves & Usability
+    * Gateways & Portals (WorldMapDungeonPortals):
+        - Dynamic Dungeon & Delve Escape Section: Injects a dedicated section at the very top of Gateways IF and only IF inside a dungeon or delve.
+        - Delver's Mana-Bound Ethergate (243056): Conjures a 1-minute party/raid portal back to Delver's Headquarters.
+        - Delve-O-Bot 7001 (230850): Fast entrance transit when inside delves.
+        - Dungeon Entrance Teleport: Automatically detects the current dungeon and offers its Hero's Path teleport to return to entrance.
+        - Party Escapes: Added Direbrew's Remote (37863) and Jaina's Locket (52251).
+        - Profession Filtering: Engineering and Fishing teleports/toys now only show for characters who actually have those professions learned.
+        - Midnight 12.0/12.1/12.1.5 Additions: Personal Key to the Arcantina (228926 / 253629), Wormhole Generator: Quel'Thalas (248485), Corewarden's Hearthstone (265100), Shadeweaver's Hearthstone (284160 / 284158), Operation: Floodgate (1216786), Operation: Mechagon (373262), The MOTHERLODE!! (373274).
+        - Auto-refresh on zone transition (PLAYER_ENTERING_WORLD).
+    * Delves Module:
+        - Added dedicated Delves navigation tab and options page.
+        - Added Mislaid Curiosities tracking toggle and Delves.lua integration.
+    * Themes & Visuals:
+        - Added "DarkMode (Integrade)" theme option with external skin hooks.
+        - Refined "Expansion" button & border theme to Toxic Green.
+        - Hardened UnitFrame gradients against taint on nameplates with nil-safe RGB color handling.
+    * Compatibility:
+        - Updated TOC Interface tags for 12.0 / 12.1 Midnight clients.
+
 2026-05-23    Update 1.0.17 - Textures & Overlays
     * Unit Frames & Textures:
         - Registered new "ztBloodyBg" textures via LibSharedMedia for health and status bars.
@@ -3572,6 +3617,18 @@ Initial Testing Release
     * CHANGES-WMDP.txt (World Map Dungeon Portals / Gateways)
     * CHANGES-UC.txt (Upgrade Clarity)
 ]]
+
+
+-- ==========================================
+-- DELVES PAGE
+-- ==========================================
+local delvesHeader = pageDelves:CreateFontString(nil, "OVERLAY")
+delvesHeader:SetFont(headerFont, 24, "OUTLINE")
+delvesHeader:SetPoint("TOP", 0, -20)
+delvesHeader:SetText("|cffA330C9Delves|r")
+
+local cbDelvesTracking = CreateToggleSwitch(pageDelves, "delvesMislaidCuriositiesTracking", "Mislaid Curiosity Tracking", 10, -60)
+cbDelvesTracking.tooltipText = "Enables tracking of Mislaid Curiosities within Delves."
 
 
 local aboutHeader = pageAbout:CreateFontString(nil, "OVERLAY")
@@ -3752,6 +3809,7 @@ local function CreateNavButton(text, index, pageFrame)
         pageInterface:Hide()
         pageTwilight:Hide()
         pageLootz:Hide()
+        pageDelves:Hide()
         pageAbout:Hide()
         pageFrame:Show()
     end)
@@ -3762,7 +3820,8 @@ CreateNavButton(L.NAV_CHARACTER, 2, pageChar)
 CreateNavButton(L.NAV_GATEWAY, 3, pageMap)
 -- CreateNavButton(L.NAV_TWILIGHT, 4, pageTwilight)
 CreateNavButton(L.NAV_LOOTZ, 4, pageLootz)
-CreateNavButton(L.NAV_ABOUT, 5, pageAbout)
+CreateNavButton("Delves", 5, pageDelves)
+CreateNavButton(L.NAV_ABOUT, 6, pageAbout)
 
 ----------------------------------------------------------------------
 -- 4. SLASH COMMANDS
@@ -3779,6 +3838,7 @@ SlashCmdList["ZIPTRIX"] = function(msg)
         pageInterface:Hide()
         pageTwilight:Hide()
         pageLootz:Hide()
+        pageDelves:Hide()
         pageAbout:Hide()
     elseif gui:IsShown() then gui:Hide() else gui:Show() end
 end

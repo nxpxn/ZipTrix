@@ -4,6 +4,26 @@ What once started as a simple addon progressed into a bit more and alot unfinish
 
 ## Changelog
 
+### 2026-10-14 - Update 1.0.18 - Midnight Gateways, Delves & Usability
+* **Gateways & Portals (WorldMapDungeonPortals):**
+  * **Dynamic Dungeon & Delve Escape Section:** Injects a dedicated section at the very top of Gateways IF and only IF inside a dungeon or delve.
+  * **Delver's Mana-Bound Ethergate (243056):** Conjures a 1-minute party/raid portal back to Delver's Headquarters.
+  * **Delve-O-Bot 7001 (230850):** Fast entrance transit when inside delves.
+  * **Dungeon Entrance Teleport:** Automatically detects the current dungeon and offers its Hero's Path teleport to return to entrance.
+  * **Party Escapes:** Added Direbrew's Remote (37863) and Jaina's Locket (52251).
+  * **Profession Filtering:** Engineering and Fishing teleports/toys now only show for characters who actually have those professions learned.
+  * **Midnight 12.0/12.1/12.1.5 Additions:** Personal Key to the Arcantina (228926 / 253629), Wormhole Generator: Quel'Thalas (248485), Corewarden's Hearthstone (265100), Shadeweaver's Hearthstone (284160 / 284158), Operation: Floodgate (1216786), Operation: Mechagon (373262), The MOTHERLODE!! (373274).
+  * Auto-refresh on zone transition (`PLAYER_ENTERING_WORLD`).
+* **Delves Module:**
+  * Added dedicated Delves navigation tab and options page in the ZipTrix configuration window.
+  * Added Mislaid Curiosities tracking toggle and `Delves.lua` integration.
+* **Themes & Visuals:**
+  * Added "DarkMode (Integrade)" theme option with external skin hooks.
+  * Refined "Expansion" button & border theme to Toxic Green.
+  * Hardened UnitFrame gradients against taint on nameplates with nil-safe RGB color handling.
+* **Compatibility:**
+  * Updated TOC Interface tags for 12.0 / 12.1 Midnight clients.
+
 ### 2026-07-09 - Update 1.0.15 - Gear Preferences Automation & UI Fixes
 * **Gear Preferences:**
   * Dynamically hooked Enchants, Consumables, and Gems using `ClassCodexGearData` to automatically grab the latest Best-in-Slot item recommendations based on the active spec.
