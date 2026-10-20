@@ -1,185 +1,61 @@
-## About
+# ZipTrix (Retail / Midnight)
 
-What once started as a simple addon progressed into a bit more and alot unfinished.
+<p align="center">
+  <img src="assets/ztRetail.jpeg" width="128" height="128" alt="ZipTrix Retail Icon">
+</p>
 
-## Changelog
+## Overview
+**ZipTrix** is a comprehensive World of Warcraft quality-of-life and UI customization suite designed for **Retail World of Warcraft (*Midnight* 12.0 / 12.1+ Client)**. It combines custom interface theming, unit frame class-spec gradients, tooltip customization, a Dungeon/Delve Gateways & Portals hub, spec-specific Gear Preferences, Item Upgrade Clarity, Delves utilities, Secrets tracking, and SharedMedia fonts into one cohesive addon.
 
-### 2026-10-14 - Update 1.0.18 - Midnight Gateways, Delves & Usability
-* **Gateways & Portals (WorldMapDungeonPortals):**
-  * **Dynamic Dungeon & Delve Escape Section:** Injects a dedicated section at the very top of Gateways IF and only IF inside a dungeon or delve.
-  * **Delver's Mana-Bound Ethergate (243056):** Conjures a 1-minute party/raid portal back to Delver's Headquarters.
-  * **Delve-O-Bot 7001 (230850):** Fast entrance transit when inside delves.
-  * **Dungeon Entrance Teleport:** Automatically detects the current dungeon and offers its Hero's Path teleport to return to entrance.
-  * **Party Escapes:** Added Direbrew's Remote (37863) and Jaina's Locket (52251).
-  * **Profession Filtering:** Engineering and Fishing teleports/toys now only show for characters who actually have those professions learned.
-  * **Midnight 12.0/12.1/12.1.5 Additions:** Personal Key to the Arcantina (228926 / 253629), Wormhole Generator: Quel'Thalas (248485), Corewarden's Hearthstone (265100), Shadeweaver's Hearthstone (284160 / 284158), Operation: Floodgate (1216786), Operation: Mechagon (373262), The MOTHERLODE!! (373274).
-  * Auto-refresh on zone transition (`PLAYER_ENTERING_WORLD`).
-* **Delves Module:**
-  * Added dedicated Delves navigation tab and options page in the ZipTrix configuration window.
-  * Added Mislaid Curiosities tracking toggle and `Delves.lua` integration.
-* **Themes & Visuals:**
-  * Added "DarkMode (Integrade)" theme option with external skin hooks.
-  * Refined "Expansion" button & border theme to Toxic Green.
-  * Hardened UnitFrame gradients against taint on nameplates with nil-safe RGB color handling.
-* **Compatibility:**
-  * Updated TOC Interface tags for 12.0 / 12.1 Midnight clients.
+---
 
-### 2026-07-09 - Update 1.0.15 - Gear Preferences Automation & UI Fixes
-* **Gear Preferences:**
-  * Dynamically hooked Enchants, Consumables, and Gems using `ClassCodexGearData` to automatically grab the latest Best-in-Slot item recommendations based on the active spec.
-  * Removed the redundant "Stat Weights" section since they are now natively injected into the Character Sheet Enhancements frame.
-  * Updated the Gem UI to fetch the actual item icons via `C_Item.GetItemIconByID` instead of generic colored empty sockets.
-* **Character Frame Fixes:**
-  * Fixed a critical Lua error (`attempt to index field 'currentSideBar' (a number value)`) when switching Character Frame bottom tabs, caused by Blizzard updating `currentSideBar` to expect a Frame object reference rather than a numeric index in modern WoW UI.
+## Installation Instructions
 
-### 2026-07-09 - Update 1.0.14 - Tooltip Taint Fixes
-* **Tooltips:**
-  * Fixed a common "secret number / frameLeft" taint error affecting map pins (e.g. Prey Icon).
-  * NineSlice alpha modifications now target internal texture regions to prevent boundary taint.
-  * Added `IsForbidden()` security checks to tooltips.
-  * Replaced legacy `HookScript("OnShow")` with the modern `TooltipDataProcessor` API.
+### Option 1: Easy Install (For Regular Users)
+If you just want to play the game with the addon, follow these simple steps:
 
-### 2026-07-09 - Update 1.0.13 - Upgrade Clarity Updates
-* **Upgrade Clarity:**
-  * Updated item level step calculation for Season 2 / Midnight track scaling (shifted the +4 item level jump to the correct interval).
+1. Click the **Code** button (green button near the top right of this page) and select **Download ZIP**.
+2. Extract the downloaded ZIP file.
+3. Rename the extracted folder from `ZipTrix-main` to **`ZipTrix`**.
+4. Move this folder into your World of Warcraft Retail AddOns directory:
+   `...\World of Warcraft\_retail_\Interface\AddOns\`
+5. Start the game, ensure the addon is enabled, and enjoy!
 
-### 2026-07-06 - Update 1.0.12 - 12.0 API Migration & Performance
-* **API Migration:**
-  * Updated TOC and frame handles to Midnight 12.0 standards (removed global `CreateFrame` names).
-  * Updated CLEU and `issecretvalue()` checks for secure variables.
-* **Performance:**
-  * Optimized performance by localizing API globals and throttling `OnUpdate` ticks.
+### Option 2: Clone (For Advanced Users)
+If you prefer to use Git to clone the repository directly into your AddOns folder:
 
-### 2026-02-10 - Update 1.0.11 - Secrets & Cleanup
-* **Secrets Helper:**
-  * Fixed waypoint buttons not functioning (now using SecureActionButtonTemplate).
-  * Fixed layout issues where dropdown items overlapped headers.
-  * Added "World Quest" style banners to secret headers.
-  * "Mind-Seeker" section now tracks progress (Secrets: X/Y).
-* **Character Options:**
-  * Added "Tracker Cleanup" button to untrack all quests and achievements.
-* **Fixes:**
-  * Fixed Lua error when clicking Link pills (StaticPopup EditBox casing).
-  * Fixed waypoint macro execution reliability.
+Open your terminal or command prompt inside your AddOns folder (`...\World of Warcraft\_retail_\Interface\AddOns\`) and run:
+```bash
+git clone https://github.com/nxpxn/ZipTrix.git
+```
 
-### 2026-02-08 - Update 1.0.10 - Outlaw Rogue
-* **Gear Preferences:**
-  * Updated Outlaw Rogue stat weights, enchants, and consumables.
+---
 
-### 2026-02-08 - Update 1.0.9 - Marksmanship Hunter
-* **Gear Preferences:**
-  * Updated Marksmanship Hunter stat weights, enchants, and consumables.
-  * Added missing enchant definition (Scout's March).
+## Primary Features
+- **Gateways & Portals Hub (`WorldMapDungeonPortals`):**
+  - Provides quick one-click access to **Mythic+ Hero's Path Dungeon Teleports**, **Hearthstones**, **Engineering Wormhole Generators**, and teleport toys/items across expansions (updated for *Midnight* 12.0 / 12.1).
+  - **Dynamic Dungeon & Delve Escape Section:** Automatically appears at the top of the Gateways tab whenever you are inside a dungeon or delve, offering instant access to *Delver's Mana-Bound Ethergate*, *Delve-O-Bot 7001*, the active dungeon's entrance teleport, *Direbrew's Remote*, and *Jaina's Locket*.
+  - **Smart Profession Filtering:** Profession-restricted teleports (Engineering, Fishing) only appear on characters who have learned that profession.
+- **Gear Preferences & Character Sheet Enhancements (`GearPrefs`):**
+  - Adds a dedicated **Gear Preferences** tab to the Character Pane displaying spec-specific Best-in-Slot **Gems**, **Enchants**, **Consumables**, Hunter Scopes, and DK Runeforges dynamically powered by `ClassCodexGearData`.
+  - Enhances the default Character Stats pane with inline **Stat Ratings**, **Percentages**, and **Diminishing Returns (DR)** threshold indicators.
+- **UI Themes, Unit Frames & Character Customization:**
+  - **Global Themes & Borders:** Customize tooltips, dropdowns, and UI buttons with themes including `Dark`, `Expansion` (Toxic Green), `Class`, `DarkMode (Integrade)`, or `Blizzard`.
+  - **Class-Spec Health Bar Gradients:** Dynamic specialization color gradients for Player, Target, Party, Raid (`CompactUnitFrames`), and Class Resource bars.
+  - **Custom Character Sheet Portraits:** Replace your character sheet portrait with stylized class emblems (`Fabled`, `Core`, `Myth`, `Realm`, `Void`, or `Hidden`—right-click the portrait to cycle).
+  - **Bag & Queue Visuals:** Openable container/cache glow in bags matching your active theme, plus LFG Queue Eye cursor tracking.
+- **Tooltip Customization:**
+  - Cursor anchoring, custom NineSlice-safe border styling, optional combat hiding, unit health bar hiding, and automatic **Item ID** and **Spell ID** display.
+- **Upgrade Clarity (`UpgradeClarity`):**
+  - Displays clear item upgrade track and step scaling information for current season and *Midnight* gear tracks, plus vendor upgrade and uncollected transmog indicators.
+- **Delves & Secrets Helpers (`Delves` / Secrets):**
+  - **Delves Module:** Dedicated Delves configuration tab with **Mislaid Curiosities** tracking.
+  - **Secrets Helper:** Built-in progress tracker and one-click waypoint generator for World of Warcraft secrets (*Mind-Seeker*, *Baa'l*, *Waist of Time*, *Otto*, and more).
+- **Class Utilities & Quality of Life (`EverythingElse` / `Druidism`):**
+  - **Class Macro Generators & Bars:** One-click Travel, Utility, and Interrupt macro generators for **Shaman**, **Paladin**, and **Druid**, plus a movable/resizable **Shaman Maelstrom Weapon** resource bar (1–10 stacks).
+  - **Cleanup & Wardrobe Utilities:** Duplicate **Macro Clean Up** tool, **Tracker Cleanup** (untrack all quests/achievements), **Unlock Blizzard Frames** helper, and **Wardrobe Outfit Icon Search** (by Icon ID, Spell ID/Name, or Item ID/Name).
+- **Shared Media Fonts:**
+  - Automatically registers a curated collection of custom fonts with `LibSharedMedia-3.0` (*Atkinson Hyperlegible Next*, *Expressway*, *SF Atarian System*, *Zilla Slab*, *Epic Fusion*, and *D&D Fonts*).
 
-### 2026-02-07 - Update 1.0.8 - Survival Hunter & Data Updates
-* **Gear Preferences:**
-  * Updated Survival and Beast Mastery Hunter stat weights, enchants, and consumables for The War Within S1 / Midnight Pre-Patch.
-  * Added missing enchant definitions (Council's Guile, Stonebound Artistry, Chant of Leeching Fangs).
-
-### 2026-02-06 - Update 1.0.7 - Cleanup & Bag Visuals
-* **Interface Enhancements:**
-  * Added "Openable Item Glow" to bag slots. Containers and caches now glow with the current interface theme color.
-* **Gear Preferences:**
-  * Updated Guardian Druid stat weights, enchants, and consumables for The War Within S1 / Midnight Pre-Patch.
-  * Fixed visual bug where previous character tabs remained visible under the Gear Prefs pane.
-  * Added opaque background to Gear Prefs pane to prevent transparency issues.
-* **Cleanup & Fixes:**
-  * Completely removed "Death Strike Predictor" module due to persistent protected function errors.
-  * Fixed Lua errors related to bag hook initialization.
-
-### 2026-02-02 - Update 1.0.6 - GearPrefs Polish & Fixes
-* **Gear Preferences:**
-  * Expanded compatibility to support The War Within (11.0+) clients.
-  * Implemented widget pooling to prevent memory leaks during spec switches.
-  * Visual Overhaul: Aligned fonts and row styling with the default Character Stats pane.
-  * Added inline Stat Ratings and Percentages to the default Character Stats pane.
-  * Added Diminishing Returns (DR) threshold indicators for secondary stats.
-  * Converted Consumables list to text rows with hoverable tooltips.
-  * Added hoverable tooltips for Enchants (Item/Spell details).
-  * Fixed panel overlapping issues when switching between Character tabs.
-  * Updated data for Midnight Pre-Patch (Consumables, Enchants, Hunter Scopes, DK Runeforges).
-
-### 2026-02-02 - Update 1.0.5 - Shaman & Gear Preferences
-* **Shaman Enhancements:**
-  * Added custom Maelstrom Weapon resource bar (tracks 1-10 stacks).
-  * Replaces default spell alert with a movable/resizable bar.
-  * Features lightning animation at full stacks.
-  * Movable via Shift+LeftClick, Resizable via Shift+RightClick.
-* **Gear Preferences (Midnight Beta Feature):**
-  * Added new "Gear Preferences" tab to the Character Pane.
-  * Displays Stat Weights, Gems, Enchants, and Consumables for current spec.
-  * Populated with Midnight Pre-Patch data for all classes.
-  * Interactive consumable icons (Link/Tooltip).
-  * Only active on Interface 12.0+ clients.
-* **Cleanup & Fixes:**
-  * Removed "Next Rare" floating button module.
-  * Updated TOC to Interface 120000.
-
-### 2026-01-29 - Update 1.0.4.1 - Vendor Overhaul & Polish
-* **Twilight Highlands Vendor:**
-  * Fixed the upgrade icon in the Twilight Highlands Vendor section.
-
-### 2026-01-29 - Update 1.0.4 - Vendor Overhaul & Polish
-* **Twilight Highlands Vendor:**
-  * Fixed item population issues (Robes/Cosmetics) and removed strict usability checks.
-  * Replaced broken "ItemButtonTemplate" with custom button logic.
-  * Added Class-Specific Weapon filtering.
-  * Integrated "Upgrade Clarity" logic (Pawn support + Item Level fallback).
-  * Added visual indicators: Green Arrow (Upgrade), Purple Eye (Uncollected Transmog).
-  * Enhanced Tooltips: Now display status (Available, Cannot Afford, Owned) and Transmog status.
-  * Added Help (?) button with usage guide.
-* **UI Improvements:**
-  * Increased main window height to 520.
-  * Fixed Character Portrait persistence when switching tabs.
-  * Updated API calls for Midnight/The War Within compatibility.
-
-### 2026-01-28 - Update 1.0.3 - Twilight Highlands Readiness
-* **Twilight Highlands:**
-  * Next rare button enabled only in Twilight Highlands.
-  * Added event timer for the hourly event.
-  * Started work on class-spec specific armor purchases (WIP: not working, still needs work).
-
-### 2026-01-27 - Update 1.0.2 - Character & Visual Polish
-* **Character Customization:**
-  * Added "Custom Character Sheet" option to replace the player portrait with stylized class icons.
-  * Includes styles: Fabled, Core, Myth, Realm, Void, and Hidden.
-  * Right-click the portrait on the Character Sheet to cycle through styles.
-* **Collections:**
-  * Added "Wardrobe Icon Search" to the Outfit Editor (search by Icon ID, Spell ID/Name, or Item ID/Name).
-* **Visuals:**
-  * Fixed Class-Spec color gradients for Party and Raid frames (CompactUnitFrames).
-  * Added "LFG Eye Tracking" - the queue eye now follows your cursor.
-* **Cleanup:**
-  * Removed deprecated auto-loot/auto-learn features to comply with API restrictions.
-
-### 2026-01-25 - Update 1.0.1 - Class & Visual Refinement
-* **Class Options:**
-  * Added Shaman section with Travel, Utility, and Interrupt macro generators.
-  * Added Paladin section with Utility macro generators.
-  * Added "Macro Clean Up" tool to remove duplicate character macros.
-  * Added class-specific visibility logic for character options.
-* **Visuals & Theming:**
-  * Refined Class-Spec gradient colors for all classes.
-  * Extended gradients to Party/Raid frames and Class Resource bars (Holy Power, etc.).
-  * Replaced checkboxes with animated Toggle Switches for key interface settings.
-  * Added "Unlock Blizzard Frames" utility for new characters.
-* **Performance & Fixes:**
-  * Optimized loot scanning with item caching and removed protected automation calls.
-  * Added debouncing to Gateway panel refreshes.
-  * Fixed tooltip styling issues in Talent UI.
-
-### 2026-01-24 - Version 1.0.0
-**Initial Testing Release**
-Contains minor forks of the following addons:
-* Enhance QoL by R41Z0R (World map teleports)
-* Item Upgrade Quality Icons by keyboardturner, SolanyaStormbreaker
-
-**Core Suite Features (ZipTrix)**
-* Tooltip Customization: Cursor anchoring, custom borders/themes, ID display, and combat visibility options.
-* Interface Enhancements: Global button theming and Unit Frame health bar gradients (Class-Spec colors).
-* Quality of Life: Auto-opening containers, auto-learning decor/schematics, and Paladin weapon imbue helper.
-* Media: Registers custom fonts (SF Atarian System, Expressway) via LibSharedMedia.
-
-**Note:** Detailed changes for specific modules can be found in:
-* CHANGES-WMDP.txt (World Map Dungeon Portals / Gateways)
-* CHANGES-UC.txt (Upgrade Clarity)"
+## Configuration
+You can access the **ZipTrix** configuration window via the **Addon Compartment** button (minimap header), the standard World of Warcraft **Options -> AddOns** menu, or the **Gear Preferences** tab on your Character Sheet. Detailed module changelogs are available in `CHANGES.TXT`.
